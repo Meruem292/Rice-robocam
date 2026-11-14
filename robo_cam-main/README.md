@@ -11,7 +11,7 @@ flowchart TB
     BAT["24V 12Ah E-Bike Battery (B+, B-)"]
     FUSE["40A DC Inline Blade Fuse"]
     ESTOP["30A DC Master E-Stop Switch"]
-    PROT["Protection Cluster (2200µF 35V Cap + SMBJ28A TVS)"]
+    PROT["Power Bus Buffer<br/>(Bulk Cap / Onboard Driver Caps · TVS Optional)"]
     BUCK["24V -> 5V 5A Buck Converter"]
     
     RPI["Raspberry Pi 4B (Brain)<br/>• FastAPI Web Server<br/>• OpenCV ExG & IRRI LCC Analysis<br/>• Picamera2 (Pi Camera v2 CSI)<br/>• Hardware UART (/dev/serial0)<br/>• SQLite Database (ricetrack.db)<br/>• In-Field Wi-Fi Hotspot"]
