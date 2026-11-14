@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+esp32_firmware/ricetrack_esp32/build/
+

@@ -1,0 +1,680 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1540 1120" width="100%" height="100%" style="background:#090d16; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <defs>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#151d2e" stroke-width="1"/>
+    </pattern>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+    <marker id="arrow" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="#070a12"/>
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+
+  <!-- ================================================================= -->
+  <!-- HEADER BAR                                                         -->
+  <!-- ================================================================= -->
+  <rect x="30" y="16" width="1480" height="50" rx="8" fill="#131c2e" stroke="#22334d" stroke-width="1.5"/>
+  <text x="50" y="47" fill="#f8fafc" font-size="18" font-weight="700" letter-spacing="0.5">RICETRACK / ROBOCAM — ESP32 HARDWARE WIRING SCHEMATIC (REAL PINOUT)</text>
+  <rect x="1260" y="24" width="230" height="34" rx="6" fill="#0284c7"/>
+  <text x="1375" y="46" fill="#ffffff" font-size="11" font-weight="800" text-anchor="middle">DOIT ESP32 DEVKIT V1 · 30-PIN</text>
+
+  <!-- ================================================================= -->
+  <!-- 1. ESP32 DEVKIT V1 BOARD — REALISTIC PHYSICAL PINOUT              -->
+  <!-- ================================================================= -->
+  <g id="esp32-board" filter="url(#shadow)">
+    <!-- PCB Body -->
+    <rect x="540" y="180" width="260" height="490" rx="5" fill="#1a1f2e" stroke="#475569" stroke-width="2"/>
+
+    <!-- Mounting Holes -->
+    <circle cx="555" cy="195" r="6" fill="#090d16" stroke="#334155" stroke-width="1.5"/>
+    <circle cx="785" cy="195" r="6" fill="#090d16" stroke="#334155" stroke-width="1.5"/>
+    <circle cx="555" cy="655" r="6" fill="#090d16" stroke="#334155" stroke-width="1.5"/>
+    <circle cx="785" cy="655" r="6" fill="#090d16" stroke="#334155" stroke-width="1.5"/>
+
+    <!-- ESP-32 WROOM-32 Module (Metal RF Shield) -->
+    <rect x="567" y="195" width="206" height="128" rx="3" fill="#a8b0bc" stroke="#d4d4d8" stroke-width="1"/>
+    <!-- Antenna Trace -->
+    <rect x="567" y="185" width="50" height="14" rx="2" fill="#8896a8" stroke="#bcc5d0" stroke-width="0.8"/>
+    <!-- Module Text -->
+    <text x="670" y="248" fill="#1e293b" font-size="20" font-weight="800" text-anchor="middle">ESP-32</text>
+    <text x="670" y="268" fill="#334155" font-size="11" font-weight="600" text-anchor="middle">WROOM-32</text>
+    <text x="670" y="285" fill="#475569" font-size="8" text-anchor="middle">WiFi + Bluetooth · Dual Core 240MHz</text>
+
+    <!-- Board Title Below Module -->
+    <text x="670" y="340" fill="#7dd3fc" font-size="11" font-weight="700" text-anchor="middle">DOIT ESP32 DEVKIT V1</text>
+
+    <!-- Dotted Separator -->
+    <line x1="555" y1="348" x2="785" y2="348" stroke="#334155" stroke-dasharray="3,2"/>
+
+    <!-- ─── LEFT PIN HEADER (15 PINS) ─── -->
+    <!-- Pin 1: 3V3 -->
+    <circle cx="535" cy="365" r="4.5" fill="#f97316" stroke="#fff" stroke-width="1.2"/>
+    <text x="555" y="369" fill="#f97316" font-size="9.5" font-weight="700">3V3</text>
+    <text x="610" y="369" fill="#94a3b8" font-size="8">Power Out</text>
+
+    <!-- Pin 2: EN -->
+    <circle cx="535" cy="385" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="555" y="389" fill="#64748b" font-size="9.5">EN</text>
+
+    <!-- Pin 3: VP (GPIO 36) -->
+    <circle cx="535" cy="405" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="555" y="409" fill="#64748b" font-size="9.5">VP</text>
+    <text x="610" y="409" fill="#475569" font-size="7">GPIO36</text>
+
+    <!-- Pin 4: VN (GPIO 39) -->
+    <circle cx="535" cy="425" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="555" y="429" fill="#64748b" font-size="9.5">VN</text>
+    <text x="610" y="429" fill="#475569" font-size="7">GPIO39</text>
+
+    <!-- Pin 5: D34 -->
+    <circle cx="535" cy="445" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="555" y="449" fill="#64748b" font-size="9.5">D34</text>
+
+    <!-- Pin 6: D35 -->
+    <circle cx="535" cy="465" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="555" y="469" fill="#64748b" font-size="9.5">D35</text>
+
+    <!-- Pin 7: D32 ★ L_RPWM -->
+    <circle cx="535" cy="485" r="4.5" fill="#eab308" stroke="#fff" stroke-width="1.2"/>
+    <text x="555" y="489" fill="#eab308" font-size="9.5" font-weight="700">D32</text>
+    <text x="610" y="489" fill="#fde68a" font-size="8">L_RPWM</text>
+
+    <!-- Pin 8: D33 ★ L_LPWM -->
+    <circle cx="535" cy="505" r="4.5" fill="#eab308" stroke="#fff" stroke-width="1.2"/>
+    <text x="555" y="509" fill="#eab308" font-size="9.5" font-weight="700">D33</text>
+    <text x="610" y="509" fill="#fde68a" font-size="8">L_LPWM</text>
+
+    <!-- Pin 9: D25 ★ L_R_EN -->
+    <circle cx="535" cy="525" r="4.5" fill="#fb923c" stroke="#fff" stroke-width="1.2"/>
+    <text x="555" y="529" fill="#fb923c" font-size="9.5" font-weight="700">D25</text>
+    <text x="610" y="529" fill="#fed7aa" font-size="8">L_R_EN</text>
+
+    <!-- Pin 10: D26 ★ L_L_EN -->
+    <circle cx="535" cy="545" r="4.5" fill="#fb923c" stroke="#fff" stroke-width="1.2"/>
+    <text x="555" y="549" fill="#fb923c" font-size="9.5" font-weight="700">D26</text>
+    <text x="610" y="549" fill="#fed7aa" font-size="8">L_L_EN</text>
+
+    <!-- Pin 11: D27 ★ R_R_EN -->
+    <circle cx="535" cy="565" r="4.5" fill="#a3e635" stroke="#fff" stroke-width="1.2"/>
+    <text x="555" y="569" fill="#a3e635" font-size="9.5" font-weight="700">D27</text>
+    <text x="610" y="569" fill="#d9f99d" font-size="8">R_R_EN</text>
+
+    <!-- Pin 12: D14 ★ R_L_EN -->
+    <circle cx="535" cy="585" r="4.5" fill="#a3e635" stroke="#fff" stroke-width="1.2"/>
+    <text x="555" y="589" fill="#a3e635" font-size="9.5" font-weight="700">D14</text>
+    <text x="610" y="589" fill="#d9f99d" font-size="8">R_L_EN</text>
+
+    <!-- Pin 13: D12 -->
+    <circle cx="535" cy="605" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="555" y="609" fill="#64748b" font-size="9.5">D12</text>
+
+    <!-- Pin 14: D13 -->
+    <circle cx="535" cy="625" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="555" y="629" fill="#64748b" font-size="9.5">D13</text>
+
+    <!-- Pin 15: GND -->
+    <circle cx="535" cy="645" r="4.5" fill="#3b82f6" stroke="#fff" stroke-width="1.2"/>
+    <text x="555" y="649" fill="#3b82f6" font-size="9.5" font-weight="700">GND</text>
+
+    <!-- ─── RIGHT PIN HEADER (15 PINS) ─── -->
+    <!-- Pin 1: VIN -->
+    <circle cx="805" cy="365" r="4.5" fill="#10b981" stroke="#fff" stroke-width="1.2"/>
+    <text x="785" y="369" fill="#10b981" font-size="9.5" font-weight="700" text-anchor="end">VIN</text>
+    <text x="730" y="369" fill="#6ee7b7" font-size="8" text-anchor="end">5V In</text>
+
+    <!-- Pin 2: GND -->
+    <circle cx="805" cy="385" r="4.5" fill="#3b82f6" stroke="#fff" stroke-width="1.2"/>
+    <text x="785" y="389" fill="#3b82f6" font-size="9.5" font-weight="700" text-anchor="end">GND</text>
+
+    <!-- Pin 3: D15 -->
+    <circle cx="805" cy="405" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="785" y="409" fill="#64748b" font-size="9.5" text-anchor="end">D15</text>
+
+    <!-- Pin 4: D2 (LED) -->
+    <circle cx="805" cy="425" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="785" y="429" fill="#64748b" font-size="9.5" text-anchor="end">D2</text>
+    <text x="730" y="429" fill="#475569" font-size="7" text-anchor="end">LED</text>
+
+    <!-- Pin 5: D4 -->
+    <circle cx="805" cy="445" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="785" y="449" fill="#64748b" font-size="9.5" text-anchor="end">D4</text>
+
+    <!-- Pin 6: RX2 ★ GPS -->
+    <circle cx="805" cy="465" r="4.5" fill="#fbbf24" stroke="#fff" stroke-width="1.2"/>
+    <text x="785" y="469" fill="#fbbf24" font-size="9.5" font-weight="700" text-anchor="end">RX2</text>
+    <text x="730" y="469" fill="#fef08a" font-size="8" text-anchor="end">← GPS TX</text>
+
+    <!-- Pin 7: TX2 ★ GPS -->
+    <circle cx="805" cy="485" r="4.5" fill="#38bdf8" stroke="#fff" stroke-width="1.2"/>
+    <text x="785" y="489" fill="#38bdf8" font-size="9.5" font-weight="700" text-anchor="end">TX2</text>
+    <text x="730" y="489" fill="#bae6fd" font-size="8" text-anchor="end">→ GPS RX</text>
+
+    <!-- Pin 8: D5 -->
+    <circle cx="805" cy="505" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="785" y="509" fill="#64748b" font-size="9.5" text-anchor="end">D5</text>
+
+    <!-- Pin 9: D18 ★ R_RPWM -->
+    <circle cx="805" cy="525" r="4.5" fill="#4ade80" stroke="#fff" stroke-width="1.2"/>
+    <text x="785" y="529" fill="#4ade80" font-size="9.5" font-weight="700" text-anchor="end">D18</text>
+    <text x="730" y="529" fill="#bbf7d0" font-size="8" text-anchor="end">R_RPWM</text>
+
+    <!-- Pin 10: D19 ★ R_LPWM -->
+    <circle cx="805" cy="545" r="4.5" fill="#4ade80" stroke="#fff" stroke-width="1.2"/>
+    <text x="785" y="549" fill="#4ade80" font-size="9.5" font-weight="700" text-anchor="end">D19</text>
+    <text x="730" y="549" fill="#bbf7d0" font-size="8" text-anchor="end">R_LPWM</text>
+
+    <!-- Pin 11: D21 ★ IMU SDA -->
+    <circle cx="805" cy="565" r="4.5" fill="#c084fc" stroke="#fff" stroke-width="1.2"/>
+    <text x="785" y="569" fill="#c084fc" font-size="9.5" font-weight="700" text-anchor="end">D21</text>
+    <text x="730" y="569" fill="#e9d5ff" font-size="8" text-anchor="end">I²C SDA</text>
+
+    <!-- Pin 12: RX0 -->
+    <circle cx="805" cy="585" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="785" y="589" fill="#64748b" font-size="9.5" text-anchor="end">RX0</text>
+    <text x="730" y="589" fill="#475569" font-size="7" text-anchor="end">USB RX</text>
+
+    <!-- Pin 13: TX0 -->
+    <circle cx="805" cy="605" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="785" y="609" fill="#64748b" font-size="9.5" text-anchor="end">TX0</text>
+    <text x="730" y="609" fill="#475569" font-size="7" text-anchor="end">USB TX</text>
+
+    <!-- Pin 14: D22 ★ IMU SCL -->
+    <circle cx="805" cy="625" r="4.5" fill="#a855f7" stroke="#fff" stroke-width="1.2"/>
+    <text x="785" y="629" fill="#a855f7" font-size="9.5" font-weight="700" text-anchor="end">D22</text>
+    <text x="730" y="629" fill="#d8b4fe" font-size="8" text-anchor="end">I²C SCL</text>
+
+    <!-- Pin 15: D23 -->
+    <circle cx="805" cy="645" r="4.5" fill="#475569" stroke="#64748b" stroke-width="1"/>
+    <text x="785" y="649" fill="#64748b" font-size="9.5" text-anchor="end">D23</text>
+
+    <!-- USB Micro-B Port -->
+    <rect x="637" y="660" width="66" height="14" rx="3" fill="#64748b" stroke="#94a3b8" stroke-width="1"/>
+    <rect x="645" y="662" width="50" height="10" rx="2" fill="#475569"/>
+    <text x="670" y="670" fill="#e2e8f0" font-size="7" font-weight="700" text-anchor="middle">USB</text>
+
+    <!-- BOOT Button -->
+    <rect x="720" y="640" width="28" height="10" rx="2" fill="#374151" stroke="#6b7280" stroke-width="0.8"/>
+    <text x="734" y="647" fill="#9ca3af" font-size="6" font-weight="600" text-anchor="middle">BOOT</text>
+
+    <!-- EN Button -->
+    <rect x="592" y="640" width="28" height="10" rx="2" fill="#374151" stroke="#6b7280" stroke-width="0.8"/>
+    <text x="606" y="647" fill="#9ca3af" font-size="6" font-weight="600" text-anchor="middle">RST</text>
+
+    <!-- Pin Side Labels -->
+    <text x="535" y="358" fill="#475569" font-size="7" font-weight="600" text-anchor="middle">LEFT</text>
+    <text x="805" y="358" fill="#475569" font-size="7" font-weight="600" text-anchor="middle">RIGHT</text>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- 2. HOST PC + USB CAMERA (Below ESP32)                              -->
+  <!-- ================================================================= -->
+  <g id="host-pc" filter="url(#shadow)">
+    <rect x="440" y="730" width="460" height="90" rx="10" fill="#131e31" stroke="#06b6d4" stroke-width="2"/>
+    <rect x="440" y="730" width="460" height="26" rx="10" fill="#155e75"/>
+    <rect x="440" y="748" width="460" height="8" fill="#155e75"/>
+    <text x="670" y="748" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">HOST PC / LAPTOP (Python · OpenCV · PySide6 · FastAPI)</text>
+
+    <!-- Camera Sub-Block -->
+    <rect x="460" y="770" width="140" height="35" rx="5" fill="#0c4a6e" stroke="#0ea5e9" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="530" y="783" fill="#22d3ee" font-size="9" font-weight="700" text-anchor="middle">📷 USB CAMERA</text>
+    <text x="530" y="796" fill="#67e8f9" font-size="8" text-anchor="middle">1280×720 OpenCV</text>
+
+    <!-- Serial Bridge Label -->
+    <rect x="620" y="770" width="160" height="35" rx="5" fill="#0c4a6e" stroke="#0ea5e9" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="700" y="783" fill="#22d3ee" font-size="9" font-weight="700" text-anchor="middle">🔌 USB SERIAL (COM3)</text>
+    <text x="700" y="796" fill="#67e8f9" font-size="8" text-anchor="middle">115200 baud JSON</text>
+
+    <!-- Vision Sub-Block -->
+    <rect x="800" y="770" width="85" height="35" rx="5" fill="#0c4a6e" stroke="#0ea5e9" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="842" y="783" fill="#22d3ee" font-size="9" font-weight="700" text-anchor="middle">🧠 AI</text>
+    <text x="842" y="796" fill="#67e8f9" font-size="8" text-anchor="middle">YOLOv8 · LCC</text>
+  </g>
+
+  <!-- USB Cable: ESP32 USB Port → Host PC -->
+  <path d="M 670 674 L 670 730" fill="none" stroke="#06b6d4" stroke-width="3" stroke-linecap="round"/>
+  <text x="682" y="705" fill="#06b6d4" font-size="8" font-weight="600">USB</text>
+
+  <!-- ================================================================= -->
+  <!-- 3. NEO-6M GPS MODULE (Right of ESP32)                              -->
+  <!-- ================================================================= -->
+  <g id="gps-module" filter="url(#shadow)">
+    <rect x="960" y="415" width="240" height="120" rx="8" fill="#131e31" stroke="#eab308" stroke-width="2"/>
+    <rect x="960" y="415" width="240" height="26" rx="8" fill="#854d0e"/>
+    <rect x="960" y="433" width="240" height="8" fill="#854d0e"/>
+    <text x="1080" y="434" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">NEO-6M GPS MODULE</text>
+    <text x="1080" y="456" fill="#fde047" font-size="9" font-weight="600" text-anchor="middle">GNSS Geotagging · UART @ 9600 baud</text>
+
+    <!-- Pins on Left Edge -->
+    <circle cx="955" cy="475" r="4.5" fill="#fbbf24" stroke="#fff" stroke-width="1.2"/>
+    <text x="975" y="479" fill="#fbbf24" font-size="9.5" font-weight="700">TX</text>
+    <text x="1000" y="479" fill="#fde68a" font-size="8">→ ESP32 RX2 (GPIO16)</text>
+
+    <circle cx="955" cy="497" r="4.5" fill="#38bdf8" stroke="#fff" stroke-width="1.2"/>
+    <text x="975" y="501" fill="#38bdf8" font-size="9.5" font-weight="700">RX</text>
+    <text x="1000" y="501" fill="#bae6fd" font-size="8">← ESP32 TX2 (GPIO17)</text>
+
+    <circle cx="955" cy="517" r="4.5" fill="#f97316" stroke="#fff" stroke-width="1"/>
+    <text x="975" y="521" fill="#f97316" font-size="9" font-weight="600">VCC</text>
+    <text x="1010" y="521" fill="#fdba74" font-size="8">3.3V</text>
+
+    <circle cx="955" cy="530" r="4.5" fill="#3b82f6" stroke="#fff" stroke-width="1"/>
+    <text x="975" y="534" fill="#3b82f6" font-size="9" font-weight="600">GND</text>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- 4. IMU GYROSCOPE MPU-6050 (Right of ESP32, below GPS)              -->
+  <!-- ================================================================= -->
+  <g id="imu-module" filter="url(#shadow)">
+    <rect x="960" y="550" width="240" height="110" rx="8" fill="#131e31" stroke="#a855f7" stroke-width="2"/>
+    <rect x="960" y="550" width="240" height="26" rx="8" fill="#6b21a8"/>
+    <rect x="960" y="568" width="240" height="8" fill="#6b21a8"/>
+    <text x="1080" y="569" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">IMU GYROSCOPE MPU-6050</text>
+    <text x="1080" y="591" fill="#d8b4fe" font-size="9" font-weight="600" text-anchor="middle">6-Axis Tilt Sensor · I²C @ 0x68</text>
+
+    <!-- Pins on Left Edge -->
+    <circle cx="955" cy="610" r="4.5" fill="#c084fc" stroke="#fff" stroke-width="1.2"/>
+    <text x="975" y="614" fill="#c084fc" font-size="9.5" font-weight="700">SDA</text>
+    <text x="1010" y="614" fill="#e9d5ff" font-size="8">↔ ESP32 D21 (GPIO21)</text>
+
+    <circle cx="955" cy="630" r="4.5" fill="#a855f7" stroke="#fff" stroke-width="1.2"/>
+    <text x="975" y="634" fill="#a855f7" font-size="9.5" font-weight="700">SCL</text>
+    <text x="1010" y="634" fill="#d8b4fe" font-size="8">↔ ESP32 D22 (GPIO22)</text>
+
+    <circle cx="955" cy="647" r="4.5" fill="#f97316" stroke="#fff" stroke-width="1"/>
+    <text x="975" y="651" fill="#f97316" font-size="9" font-weight="600">VCC</text>
+    <text x="1010" y="651" fill="#fdba74" font-size="8">3.3V</text>
+
+    <circle cx="955" cy="656" r="3.5" fill="#3b82f6" stroke="#fff" stroke-width="1"/>
+    <text x="975" y="660" fill="#3b82f6" font-size="9" font-weight="600">GND</text>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- 5. POWER SYSTEM (Top-Right)                                        -->
+  <!-- ================================================================= -->
+
+  <!-- 24V 12Ah E-BIKE BATTERY -->
+  <g id="battery" filter="url(#shadow)">
+    <rect x="1250" y="80" width="230" height="100" rx="8" fill="#131e31" stroke="#f59e0b" stroke-width="2"/>
+    <rect x="1250" y="80" width="230" height="26" rx="8" fill="#b45309"/>
+    <rect x="1250" y="98" width="230" height="8" fill="#b45309"/>
+    <text x="1365" y="99" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">24V 12Ah E-BIKE BATTERY</text>
+    <text x="1365" y="125" fill="#94a3b8" font-size="10" text-anchor="middle">Main Traction Pack</text>
+    <text x="1365" y="140" fill="#cbd5e1" font-size="9" font-family="monospace" text-anchor="middle">29.4V Peak · 24V Nom · 21V Cutoff</text>
+    <!-- Terminals -->
+    <circle cx="1290" cy="164" r="10" fill="#ef4444" stroke="#fff" stroke-width="1.5"/>
+    <text x="1290" y="168" fill="#fff" font-size="10" font-weight="800" text-anchor="middle">B+</text>
+    <circle cx="1440" cy="164" r="10" fill="#3b82f6" stroke="#fff" stroke-width="1.5"/>
+    <text x="1440" y="168" fill="#fff" font-size="10" font-weight="800" text-anchor="middle">B-</text>
+  </g>
+
+  <!-- 40A INLINE BLADE FUSE -->
+  <g id="fuse" filter="url(#shadow)">
+    <rect x="1100" y="130" width="115" height="38" rx="5" fill="#151e2e" stroke="#ef4444" stroke-width="1.5"/>
+    <path d="M 1108 149 L 1125 149 L 1138 140 L 1155 158 L 1168 149 L 1207 149" fill="none" stroke="#ef4444" stroke-width="2"/>
+    <text x="1157" y="126" fill="#ef4444" font-size="9" font-weight="700" text-anchor="middle">40A BLADE FUSE</text>
+    <circle cx="1100" cy="149" r="4" fill="#ef4444"/>
+    <circle cx="1215" cy="149" r="4" fill="#ef4444"/>
+  </g>
+
+  <!-- 30A E-STOP SWITCH -->
+  <g id="estop" filter="url(#shadow)">
+    <rect x="960" y="130" width="110" height="38" rx="5" fill="#151e2e" stroke="#e11d48" stroke-width="1.5"/>
+    <circle cx="975" cy="149" r="4" fill="#f43f5e"/>
+    <circle cx="1055" cy="149" r="4" fill="#f43f5e"/>
+    <line x1="975" y1="149" x2="1040" y2="136" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="1015" y="126" fill="#fb7185" font-size="9" font-weight="700" text-anchor="middle">30A E-STOP</text>
+  </g>
+
+  <!-- BUCK CONVERTER (24V → 5V) -->
+  <g id="buck" filter="url(#shadow)">
+    <rect x="960" y="190" width="180" height="70" rx="6" fill="#131e31" stroke="#10b981" stroke-width="2"/>
+    <rect x="960" y="190" width="180" height="22" rx="6" fill="#065f46"/>
+    <rect x="960" y="204" width="180" height="8" fill="#065f46"/>
+    <text x="1050" y="206" fill="#ffffff" font-size="10" font-weight="700" text-anchor="middle">BUCK CONVERTER (24V → 5V)</text>
+    <!-- Terminals -->
+    <circle cx="1140" cy="228" r="4" fill="#ef4444" stroke="#fff" stroke-width="1"/>
+    <text x="1130" y="232" fill="#ef4444" font-size="8" font-weight="700" text-anchor="end">In+ 24V</text>
+    <circle cx="1140" cy="248" r="4" fill="#3b82f6" stroke="#fff" stroke-width="1"/>
+    <text x="1130" y="252" fill="#3b82f6" font-size="8" font-weight="700" text-anchor="end">In- GND</text>
+    <circle cx="960" cy="228" r="4" fill="#10b981" stroke="#fff" stroke-width="1"/>
+    <text x="970" y="232" fill="#10b981" font-size="8" font-weight="700">Out+ 5V</text>
+    <circle cx="960" cy="248" r="4" fill="#3b82f6" stroke="#fff" stroke-width="1"/>
+    <text x="970" y="252" fill="#3b82f6" font-size="8" font-weight="700">Out- GND</text>
+  </g>
+
+  <!-- PROTECTION CLUSTER -->
+  <rect x="960" y="280" width="180" height="35" rx="5" fill="#101827" stroke="#38bdf8" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="1050" y="296" fill="#38bdf8" font-size="9" font-weight="700" text-anchor="middle">PROTECTION CLUSTER</text>
+  <text x="1050" y="308" fill="#94a3b8" font-size="8" text-anchor="middle">2200µF 35V Cap + SMBJ28A TVS</text>
+
+  <!-- ================================================================= -->
+  <!-- 6. LEFT BTS7960 MOTOR DRIVER                                       -->
+  <!-- ================================================================= -->
+  <g id="driver-left" filter="url(#shadow)">
+    <rect x="100" y="870" width="380" height="195" rx="8" fill="#131e31" stroke="#ea580c" stroke-width="2"/>
+    <rect x="100" y="870" width="380" height="26" rx="8" fill="#9a3412"/>
+    <rect x="100" y="888" width="380" height="8" fill="#9a3412"/>
+    <text x="290" y="889" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">LEFT BTS7960 MOTOR DRIVER (43A)</text>
+
+    <!-- Top-edge Control Pins -->
+    <circle cx="145" cy="865" r="4.5" fill="#f97316" stroke="#fff" stroke-width="1"/>
+    <text x="145" y="912" fill="#f97316" font-size="8" font-weight="700" text-anchor="middle">VCC</text>
+
+    <circle cx="195" cy="865" r="4.5" fill="#3b82f6" stroke="#fff" stroke-width="1"/>
+    <text x="195" y="912" fill="#3b82f6" font-size="8" font-weight="700" text-anchor="middle">GND</text>
+
+    <circle cx="255" cy="865" r="4.5" fill="#fb923c" stroke="#fff" stroke-width="1.2"/>
+    <text x="255" y="912" fill="#fb923c" font-size="8" font-weight="700" text-anchor="middle">R_EN</text>
+
+    <circle cx="315" cy="865" r="4.5" fill="#fb923c" stroke="#fff" stroke-width="1.2"/>
+    <text x="315" y="912" fill="#fb923c" font-size="8" font-weight="700" text-anchor="middle">L_EN</text>
+
+    <circle cx="375" cy="865" r="4.5" fill="#eab308" stroke="#fff" stroke-width="1.2"/>
+    <text x="375" y="912" fill="#eab308" font-size="8" font-weight="700" text-anchor="middle">RPWM</text>
+
+    <circle cx="435" cy="865" r="4.5" fill="#eab308" stroke="#fff" stroke-width="1.2"/>
+    <text x="435" y="912" fill="#eab308" font-size="8" font-weight="700" text-anchor="middle">LPWM</text>
+
+    <!-- Power Block -->
+    <rect x="300" y="930" width="160" height="60" rx="4" fill="#090f1d" stroke="#1e293b"/>
+    <text x="380" y="945" fill="#ef4444" font-size="9" font-weight="700" text-anchor="middle">TRACTION 24V</text>
+    <circle cx="450" cy="955" r="5" fill="#ef4444" stroke="#fff" stroke-width="1"/>
+    <text x="435" y="959" fill="#fca5a5" font-size="9" font-weight="700" text-anchor="end">B+</text>
+    <circle cx="450" cy="980" r="5" fill="#3b82f6" stroke="#fff" stroke-width="1"/>
+    <text x="435" y="984" fill="#93c5fd" font-size="9" font-weight="700" text-anchor="end">B-</text>
+
+    <!-- Motor Output -->
+    <circle cx="100" cy="980" r="5" fill="#10b981" stroke="#fff" stroke-width="1.5"/>
+    <text x="115" y="975" fill="#6ee7b7" font-size="9" font-weight="700">M+</text>
+    <circle cx="100" cy="1010" r="5" fill="#059669" stroke="#fff" stroke-width="1.5"/>
+    <text x="115" y="1014" fill="#a7f3d0" font-size="9" font-weight="700">M-</text>
+  </g>
+
+  <!-- LEFT MOTOR -->
+  <g id="motor-left" filter="url(#shadow)">
+    <rect x="10" y="950" width="65" height="95" rx="6" fill="#131e31" stroke="#64748b" stroke-width="1.5"/>
+    <rect x="10" y="950" width="65" height="18" rx="6" fill="#334155"/>
+    <text x="42" y="963" fill="#fff" font-size="8" font-weight="700" text-anchor="middle">LEFT</text>
+    <text x="42" y="982" fill="#cbd5e1" font-size="8" font-weight="600" text-anchor="middle">MY1016Z2</text>
+    <text x="42" y="995" fill="#94a3b8" font-size="7" text-anchor="middle">24V 250W</text>
+    <text x="42" y="1020" fill="#38bdf8" font-size="8" font-weight="700" text-anchor="middle">⚙ WHEEL</text>
+    <circle cx="75" cy="980" r="4" fill="#10b981" stroke="#fff" stroke-width="1"/>
+    <circle cx="75" cy="1010" r="4" fill="#059669" stroke="#fff" stroke-width="1"/>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- 7. RIGHT BTS7960 MOTOR DRIVER                                      -->
+  <!-- ================================================================= -->
+  <g id="driver-right" filter="url(#shadow)">
+    <rect x="960" y="870" width="380" height="195" rx="8" fill="#131e31" stroke="#ea580c" stroke-width="2"/>
+    <rect x="960" y="870" width="380" height="26" rx="8" fill="#9a3412"/>
+    <rect x="960" y="888" width="380" height="8" fill="#9a3412"/>
+    <text x="1150" y="889" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">RIGHT BTS7960 MOTOR DRIVER (43A)</text>
+
+    <!-- Top-edge Control Pins -->
+    <circle cx="1005" cy="865" r="4.5" fill="#f97316" stroke="#fff" stroke-width="1"/>
+    <text x="1005" y="912" fill="#f97316" font-size="8" font-weight="700" text-anchor="middle">VCC</text>
+
+    <circle cx="1055" cy="865" r="4.5" fill="#3b82f6" stroke="#fff" stroke-width="1"/>
+    <text x="1055" y="912" fill="#3b82f6" font-size="8" font-weight="700" text-anchor="middle">GND</text>
+
+    <circle cx="1115" cy="865" r="4.5" fill="#a3e635" stroke="#fff" stroke-width="1.2"/>
+    <text x="1115" y="912" fill="#a3e635" font-size="8" font-weight="700" text-anchor="middle">R_EN</text>
+
+    <circle cx="1175" cy="865" r="4.5" fill="#a3e635" stroke="#fff" stroke-width="1.2"/>
+    <text x="1175" y="912" fill="#a3e635" font-size="8" font-weight="700" text-anchor="middle">L_EN</text>
+
+    <circle cx="1235" cy="865" r="4.5" fill="#4ade80" stroke="#fff" stroke-width="1.2"/>
+    <text x="1235" y="912" fill="#4ade80" font-size="8" font-weight="700" text-anchor="middle">RPWM</text>
+
+    <circle cx="1295" cy="865" r="4.5" fill="#4ade80" stroke="#fff" stroke-width="1.2"/>
+    <text x="1295" y="912" fill="#4ade80" font-size="8" font-weight="700" text-anchor="middle">LPWM</text>
+
+    <!-- Power Block -->
+    <rect x="980" y="930" width="160" height="60" rx="4" fill="#090f1d" stroke="#1e293b"/>
+    <text x="1060" y="945" fill="#ef4444" font-size="9" font-weight="700" text-anchor="middle">TRACTION 24V</text>
+    <circle cx="990" cy="955" r="5" fill="#ef4444" stroke="#fff" stroke-width="1"/>
+    <text x="1005" y="959" fill="#fca5a5" font-size="9" font-weight="700">B+</text>
+    <circle cx="990" cy="980" r="5" fill="#3b82f6" stroke="#fff" stroke-width="1"/>
+    <text x="1005" y="984" fill="#93c5fd" font-size="9" font-weight="700">B-</text>
+
+    <!-- Motor Output -->
+    <circle cx="1340" cy="980" r="5" fill="#10b981" stroke="#fff" stroke-width="1.5"/>
+    <text x="1325" y="975" fill="#6ee7b7" font-size="9" font-weight="700" text-anchor="end">M+</text>
+    <circle cx="1340" cy="1010" r="5" fill="#059669" stroke="#fff" stroke-width="1.5"/>
+    <text x="1325" y="1014" fill="#a7f3d0" font-size="9" font-weight="700" text-anchor="end">M-</text>
+  </g>
+
+  <!-- RIGHT MOTOR -->
+  <g id="motor-right" filter="url(#shadow)">
+    <rect x="1380" y="950" width="65" height="95" rx="6" fill="#131e31" stroke="#64748b" stroke-width="1.5"/>
+    <rect x="1380" y="950" width="65" height="18" rx="6" fill="#334155"/>
+    <text x="1412" y="963" fill="#fff" font-size="8" font-weight="700" text-anchor="middle">RIGHT</text>
+    <text x="1412" y="982" fill="#cbd5e1" font-size="8" font-weight="600" text-anchor="middle">MY1016Z2</text>
+    <text x="1412" y="995" fill="#94a3b8" font-size="7" text-anchor="middle">24V 250W</text>
+    <text x="1412" y="1020" fill="#38bdf8" font-size="8" font-weight="700" text-anchor="middle">⚙ WHEEL</text>
+    <circle cx="1380" cy="980" r="4" fill="#10b981" stroke="#fff" stroke-width="1"/>
+    <circle cx="1380" cy="1010" r="4" fill="#059669" stroke="#fff" stroke-width="1"/>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- 8. SENSOR SIGNAL WIRING                                            -->
+  <!-- ================================================================= -->
+
+  <!-- GPS TX → ESP32 RX2 (GPIO 16) - Amber horizontal -->
+  <path d="M 805 465 L 860 465 L 860 475 L 955 475" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- ESP32 TX2 (GPIO 17) → GPS RX - Sky Blue horizontal -->
+  <path d="M 805 485 L 870 485 L 870 497 L 955 497" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- IMU SDA ↔ ESP32 D21 (GPIO 21) - Purple -->
+  <path d="M 805 565 L 870 565 L 870 610 L 955 610" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- IMU SCL ↔ ESP32 D22 (GPIO 22) - Violet -->
+  <path d="M 805 625 L 880 625 L 880 630 L 955 630" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- GPS VCC ← 3.3V Rail (power flag) -->
+  <path d="M 955 517 L 935 517" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="928" y="521" fill="#f97316" font-size="8" font-weight="700" text-anchor="end">▲ 3.3V</text>
+
+  <!-- GPS GND (power flag) -->
+  <path d="M 955 530 L 935 530" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="928" y="534" fill="#3b82f6" font-size="8" font-weight="700" text-anchor="end">⏚ GND</text>
+
+  <!-- IMU VCC ← 3.3V Rail (power flag) -->
+  <path d="M 955 647 L 935 647" fill="none" stroke="#f97316" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="928" y="651" fill="#f97316" font-size="8" font-weight="700" text-anchor="end">▲ 3.3V</text>
+
+  <!-- IMU GND (power flag) -->
+  <path d="M 955 656 L 935 656" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="928" y="660" fill="#3b82f6" font-size="8" font-weight="700" text-anchor="end">⏚ GND</text>
+
+  <!-- ================================================================= -->
+  <!-- 9. MOTOR CONTROL SIGNAL WIRING                                     -->
+  <!-- ================================================================= -->
+
+  <!-- LEFT MOTOR DRIVER CONTROL (from ESP32 Left Side) -->
+
+  <!-- D32 (L_RPWM): 535,485 → 375,865 -->
+  <path d="M 535 485 L 500 485 L 500 845 L 375 845 L 375 865" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- D33 (L_LPWM): 535,505 → 435,865 -->
+  <path d="M 535 505 L 494 505 L 494 843 L 435 843 L 435 865" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- D25 (L_R_EN): 535,525 → 255,865 -->
+  <path d="M 535 525 L 488 525 L 488 847 L 255 847 L 255 865" fill="none" stroke="#fb923c" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- D26 (L_L_EN): 535,545 → 315,865 -->
+  <path d="M 535 545 L 482 545 L 482 849 L 315 849 L 315 865" fill="none" stroke="#fb923c" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- RIGHT MOTOR DRIVER CONTROL (D27, D14 from ESP32 Left Side) -->
+
+  <!-- D27 (R_R_EN): 535,565 → 1115,865 -->
+  <path d="M 535 565 L 476 565 L 476 840 L 1115 840 L 1115 865" fill="none" stroke="#a3e635" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- D14 (R_L_EN): 535,585 → 1175,865 -->
+  <path d="M 535 585 L 470 585 L 470 838 L 1175 838 L 1175 865" fill="none" stroke="#a3e635" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- RIGHT MOTOR DRIVER CONTROL (D18, D19 from ESP32 Right Side) -->
+
+  <!-- D18 (R_RPWM): 805,525 → 1235,865 -->
+  <path d="M 805 525 L 855 525 L 855 842 L 1235 842 L 1235 865" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- D19 (R_LPWM): 805,545 → 1295,865 -->
+  <path d="M 805 545 L 862 545 L 862 844 L 1295 844 L 1295 865" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- BTS7960 Logic Power Flags -->
+  <!-- Left Driver VCC -->
+  <path d="M 145 865 L 145 855" fill="none" stroke="#f97316" stroke-width="1.5"/>
+  <text x="145" y="852" fill="#f97316" font-size="7" font-weight="700" text-anchor="middle">▲3.3V</text>
+  <!-- Left Driver GND -->
+  <path d="M 195 865 L 195 855" fill="none" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="195" y="852" fill="#3b82f6" font-size="7" font-weight="700" text-anchor="middle">⏚GND</text>
+  <!-- Right Driver VCC -->
+  <path d="M 1005 865 L 1005 855" fill="none" stroke="#f97316" stroke-width="1.5"/>
+  <text x="1005" y="852" fill="#f97316" font-size="7" font-weight="700" text-anchor="middle">▲3.3V</text>
+  <!-- Right Driver GND -->
+  <path d="M 1055 865 L 1055 855" fill="none" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="1055" y="852" fill="#3b82f6" font-size="7" font-weight="700" text-anchor="middle">⏚GND</text>
+
+  <!-- ================================================================= -->
+  <!-- 10. POWER DISTRIBUTION WIRING                                      -->
+  <!-- ================================================================= -->
+
+  <!-- Battery B+ → Fuse Right -->
+  <path d="M 1290 164 L 1290 149 L 1215 149" fill="none" stroke="#ef4444" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Fuse Left → E-Stop Right -->
+  <path d="M 1100 149 L 1055 149" fill="none" stroke="#ef4444" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- E-Stop Left → 24V Node at (900, 149) -->
+  <path d="M 975 149 L 900 149" fill="none" stroke="#ef4444" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="900" cy="149" r="5" fill="#ef4444"/>
+
+  <!-- 24V Node → Buck Converter In+ -->
+  <path d="M 900 149 L 900 228 L 960 228" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+  <!-- Tap junction -->
+  <circle cx="900" cy="228" r="3.5" fill="#ef4444"/>
+
+  <!-- 24V Node → Protection Cluster -->
+  <path d="M 900 228 L 900 297 L 960 297" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- 24V BUS DOWN to Motor Drivers -->
+  <path d="M 900 297 L 900 955 L 990 955" fill="none" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Branch left to Left Driver B+ -->
+  <path d="M 900 955 L 450 955" fill="none" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="900" cy="955" r="4" fill="#ef4444"/>
+
+  <!-- Battery B- → GND Bus -->
+  <path d="M 1440 164 L 1440 80 L 1490 80 L 1490 248 L 1140 248" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Buck GND Out → ESP32 GND routing -->
+  <path d="M 960 248 L 925 248 L 925 385 L 805 385" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="925" cy="248" r="3" fill="#3b82f6"/>
+
+  <!-- GND bus to Protection Cluster -->
+  <path d="M 925 248 L 925 297 L 960 297" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- GND bus down to Motor Drivers -->
+  <path d="M 925 297 L 925 980 L 990 980" fill="none" stroke="#3b82f6" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Branch left to Left Driver B- -->
+  <path d="M 925 980 L 450 980" fill="none" stroke="#3b82f6" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="925" cy="980" r="4" fill="#3b82f6"/>
+
+  <!-- Buck 5V Out → ESP32 VIN -->
+  <path d="M 960 228 L 920 228 L 920 365 L 805 365" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- ================================================================= -->
+  <!-- 11. MOTOR OUTPUT WIRING                                            -->
+  <!-- ================================================================= -->
+
+  <!-- Left Driver M+ → Left Motor M+ -->
+  <path d="M 100 980 L 75 980" fill="none" stroke="#10b981" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Left Driver M- → Left Motor M- -->
+  <path d="M 100 1010 L 75 1010" fill="none" stroke="#059669" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Right Driver M+ → Right Motor M+ -->
+  <path d="M 1340 980 L 1380 980" fill="none" stroke="#10b981" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Right Driver M- → Right Motor M- -->
+  <path d="M 1340 1010 L 1380 1010" fill="none" stroke="#059669" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- ================================================================= -->
+  <!-- 12. WIRE LABELS ON ROUTING CHANNELS                                -->
+  <!-- ================================================================= -->
+
+  <!-- Left Motor Control Label -->
+  <rect x="395" y="820" width="120" height="16" rx="3" fill="#1a1f2e" stroke="#eab308" stroke-width="0.8"/>
+  <text x="455" y="831" fill="#eab308" font-size="8" font-weight="600" text-anchor="middle">LEFT MOTOR CTRL</text>
+
+  <!-- Right Motor Control Label -->
+  <rect x="1080" y="820" width="130" height="16" rx="3" fill="#1a1f2e" stroke="#4ade80" stroke-width="0.8"/>
+  <text x="1145" y="831" fill="#4ade80" font-size="8" font-weight="600" text-anchor="middle">RIGHT MOTOR CTRL</text>
+
+  <!-- 24V Power Bus Label -->
+  <rect x="860" y="700" width="80" height="16" rx="3" fill="#1a1f2e" stroke="#ef4444" stroke-width="0.8"/>
+  <text x="900" y="711" fill="#ef4444" font-size="8" font-weight="700" text-anchor="middle">24V BUS</text>
+
+  <!-- GND Bus Label -->
+  <rect x="890" y="720" width="70" height="14" rx="3" fill="#1a1f2e" stroke="#3b82f6" stroke-width="0.8"/>
+  <text x="925" y="730" fill="#3b82f6" font-size="8" font-weight="700" text-anchor="middle">GND BUS</text>
+
+  <!-- ================================================================= -->
+  <!-- 13. LEGEND / KEY                                                   -->
+  <!-- ================================================================= -->
+  <g id="legend">
+    <rect x="40" y="82" width="350" height="230" rx="8" fill="#101827" stroke="#1e293b" stroke-width="1.5"/>
+    <text x="60" y="105" fill="#f8fafc" font-size="11" font-weight="700">WIRE COLOR LEGEND</text>
+    <line x1="55" y1="112" x2="375" y2="112" stroke="#1e293b"/>
+
+    <!-- GPS -->
+    <line x1="60" y1="130" x2="85" y2="130" stroke="#fbbf24" stroke-width="2.5"/>
+    <text x="95" y="134" fill="#fbbf24" font-size="9">GPS TX → ESP32 RX2 (GPIO 16)</text>
+    <line x1="60" y1="148" x2="85" y2="148" stroke="#38bdf8" stroke-width="2.5"/>
+    <text x="95" y="152" fill="#38bdf8" font-size="9">ESP32 TX2 (GPIO 17) → GPS RX</text>
+
+    <!-- IMU -->
+    <line x1="60" y1="166" x2="85" y2="166" stroke="#c084fc" stroke-width="2.5"/>
+    <text x="95" y="170" fill="#c084fc" font-size="9">I²C SDA (GPIO 21) ↔ MPU-6050</text>
+    <line x1="60" y1="184" x2="85" y2="184" stroke="#a855f7" stroke-width="2.5"/>
+    <text x="95" y="188" fill="#a855f7" font-size="9">I²C SCL (GPIO 22) ↔ MPU-6050</text>
+
+    <!-- Left Motor -->
+    <line x1="60" y1="202" x2="85" y2="202" stroke="#fb923c" stroke-width="2.5"/>
+    <text x="95" y="206" fill="#fb923c" font-size="9">Left Motor Enable (GPIO 25, 26)</text>
+    <line x1="60" y1="220" x2="85" y2="220" stroke="#eab308" stroke-width="2.5"/>
+    <text x="95" y="224" fill="#eab308" font-size="9">Left Motor PWM (GPIO 32, 33)</text>
+
+    <!-- Right Motor -->
+    <line x1="60" y1="238" x2="85" y2="238" stroke="#a3e635" stroke-width="2.5"/>
+    <text x="95" y="242" fill="#a3e635" font-size="9">Right Motor Enable (GPIO 27, 14)</text>
+    <line x1="60" y1="256" x2="85" y2="256" stroke="#4ade80" stroke-width="2.5"/>
+    <text x="95" y="260" fill="#4ade80" font-size="9">Right Motor PWM (GPIO 18, 19)</text>
+
+    <!-- Power -->
+    <line x1="60" y1="274" x2="85" y2="274" stroke="#ef4444" stroke-width="3.5"/>
+    <text x="95" y="278" fill="#ef4444" font-size="9">24V Traction Power (High Current)</text>
+    <line x1="60" y1="292" x2="85" y2="292" stroke="#10b981" stroke-width="2.5"/>
+    <text x="95" y="296" fill="#10b981" font-size="9">5V Regulated (Buck → ESP32 VIN)</text>
+  </g>
+
+  <!-- ================================================================= -->
+  <!-- 14. IMPORTANT NOTES                                                -->
+  <!-- ================================================================= -->
+  <g id="notes">
+    <rect x="40" y="330" width="350" height="55" rx="6" fill="#1c1917" stroke="#f97316" stroke-width="1.5"/>
+    <text x="60" y="350" fill="#f97316" font-size="10" font-weight="700">⚠ CAMERA IS USB TO LAPTOP</text>
+    <text x="60" y="365" fill="#fde68a" font-size="8">The camera plugs into the Host PC USB port.</text>
+    <text x="60" y="378" fill="#fde68a" font-size="8">It does NOT connect to the ESP32 at all.</text>
+  </g>
+
+  <!-- Version Stamp -->
+  <text x="1480" y="1105" fill="#334155" font-size="9" font-weight="600" text-anchor="end">RICETRACK v5.2.0 · REAL PINOUT SCHEMATIC · 2026-11-12</text>
+
+</svg>

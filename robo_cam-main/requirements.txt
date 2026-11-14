@@ -1,0 +1,10 @@
+# RiceTrack Dependencies for Raspberry Pi 4B & Host PC
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+pydantic>=2.0.0
+opencv-python>=4.8.0; sys_platform == 'win32'
+opencv-python-headless>=4.8.0; sys_platform == 'linux'
+numpy>=1.24.0
+pyserial>=3.5
+reportlab>=4.0.0
+PySide6>=6.5.0

@@ -1,0 +1,2469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RiceTrack — Web Application (PhilRice Muñoz)</title>
+  <style>
+    :root {
+      --bg: #0b0f0d;
+      --card: #131916;
+      --card-alt: #18201c;
+      --inset: #0e1411;
+      --line: #232e28;
+      --text: #f3f6f4;
+      --muted: #8fa196;
+      --green: #2ea043;
+      --green-dark: #196c2e;
+      --good: #3fb950;
+      --red-bg: #2d1215;
+      --red-text: #ff7b72;
+      --red-line: #5c2126;
+      --red-pin: #f85149;
+      --warn-bg: #2e210b;
+      --warn-text: #e3b341;
+      --warn-line: #5c4214;
+      --blue-bg: #0d233a;
+      --blue-text: #79c0ff;
+      --blue: #388bfd;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      padding: 14px;
+      gap: 14px;
+      overflow-x: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      min-width: 220px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px 14px 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 4px 14px 4px;
+    }
+
+    .brand-badge {
+      width: 32px;
+      height: 32px;
+      background: var(--green);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+
+    .nav-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #c9d6ce;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s ease;
+    }
+
+    .nav-btn:hover {
+      background: rgba(46, 160, 67, 0.12);
+      color: #ffffff;
+      border-color: rgba(46, 160, 67, 0.25);
+    }
+
+    .nav-btn.active {
+      background: var(--green);
+      color: #ffffff;
+      border-color: var(--good);
+    }
+
+    .nav-spacer {
+      flex: 1;
+    }
+
+    .session-box {
+      background: var(--inset);
+      border: 1px solid #1e2923;
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+
+    .session-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .session-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* Main Content Area */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .topbar {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .page-title {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Chips & Pills */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .chip.gray { background: #18201c; color: var(--muted); border-color: #26332c; }
+    .chip.green { background: #0f2918; color: var(--good); border-color: #1f5730; }
+    .chip.orange { background: var(--warn-bg); color: var(--warn-text); border-color: var(--warn-line); }
+    .chip.red { background: var(--red-bg); color: var(--red-text); border-color: var(--red-line); }
+    .chip.blue { background: var(--blue-bg); color: var(--blue-text); border-color: #1f4772; }
+
+    /* Status Banner */
+    .status-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+    .status-banner.show { display: flex; }
+    .status-banner.red { background: var(--red-bg); border-color: var(--red-line); color: var(--red-text); }
+    .status-banner.green { background: #0f2617; border-color: #1e522e; color: var(--good); }
+    .status-banner.blue { background: var(--blue-bg); border-color: #1f4772; color: var(--blue-text); }
+    .status-banner.orange { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-text); }
+    .status-banner.gray { background: var(--card-alt); border-color: var(--line); color: var(--muted); }
+    #sceneBanner.red { animation: scenePulse 1s ease-in-out infinite; font-weight: 800; }
+    @keyframes scenePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(248, 81, 73, 0.0); } 50% { box-shadow: 0 0 0 4px rgba(248, 81, 73, 0.45); } }
+
+    /* Tab Panes */
+    .tab-pane {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+    .tab-pane.active {
+      display: flex;
+    }
+
+    /* Cards & Layout */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .inset-box {
+      background: var(--inset);
+      border: 1px solid #1c2621;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: 5fr 4fr;
+      gap: 14px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Buttons & Inputs */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: #171f1b;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+    .btn:hover:not(:disabled) {
+      background: #1f2924;
+      border-color: #34463c;
+    }
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .btn.primary {
+      background: var(--green);
+      color: #ffffff;
+      border-color: var(--good);
+      font-weight: 700;
+    }
+    .btn.primary:hover:not(:disabled) {
+      background: #36b54d;
+      border-color: #56d364;
+    }
+    .btn.seg.active {
+      background: var(--green);
+      color: #ffffff;
+      border-color: var(--good);
+    }
+
+    select, input[type="text"], input[type="number"] {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 7px 12px;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      outline: none;
+    }
+    select:hover, input:focus {
+      border-color: var(--green);
+    }
+
+    /* Camera Viewport */
+    .camera-viewport {
+      position: relative;
+      flex: 1;
+      min-height: 300px;
+      background: #0d1310;
+      border: 1px solid #223029;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .camera-viewport img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: none;
+    }
+
+    .camera-placeholder {
+      text-align: center;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hud-badge {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(11, 15, 13, 0.86);
+      border: 1px solid #2c3d34;
+      border-radius: 8px;
+      padding: 5px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+      pointer-events: none;
+      display: none;
+      white-space: nowrap;
+    }
+
+    /* Attitude Tiles */
+    .tiles-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
+      gap: 10px;
+    }
+
+    .att-tile {
+      background: var(--inset);
+      border: 1px solid #1f2b25;
+      border-radius: 12px;
+      padding: 10px 14px;
+    }
+    .att-tile.danger {
+      background: var(--red-bg);
+      border-color: var(--red-line);
+    }
+    .att-name {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .att-tile.danger .att-name { color: #ff948d; }
+    .att-val {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text);
+      margin-top: 2px;
+    }
+    .att-tile.danger .att-val { color: var(--red-text); }
+
+    /* D-Pad */
+    .dpad-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 4px 0;
+    }
+    .dpad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 46px);
+      grid-template-rows: repeat(3, 46px);
+      gap: 6px;
+    }
+    .pad-btn {
+      background: #161e1a;
+      color: var(--text);
+      border: 1px solid #28362e;
+      border-radius: 14px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s ease;
+    }
+    .pad-btn:hover {
+      background: #1f2b25;
+      border-color: var(--green);
+      color: #ffffff;
+    }
+    .pad-btn.active {
+      background: var(--green);
+      border-color: #56d364;
+      color: #ffffff;
+    }
+
+    /* Progress Bar */
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: #18211d;
+      border: 1px solid #222e28;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--green), var(--blue));
+      transition: width 0.25s ease;
+    }
+
+    /* KV Row */
+    .kv-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .kv-label { color: var(--muted); font-weight: 500; }
+    .kv-val { color: var(--text); font-weight: 600; text-align: right; }
+
+    /* Field Map Canvas */
+    .map-canvas-wrap {
+      flex: 1;
+      min-height: 380px;
+      background: #0e1511;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    #fieldMapCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: pointer;
+    }
+
+    /* Records Table */
+    .records-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 62vh;
+      overflow-y: auto;
+    }
+    .rec-header, .rec-summary {
+      display: grid;
+      grid-template-columns: 1.1fr 1.5fr 1fr 1.2fr 1.1fr 1.3fr;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+    }
+    .rec-header {
+      border-bottom: 1px solid #1e2923;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .rec-item {
+      border-bottom: 1px solid #1e2923;
+      border-radius: 10px;
+    }
+    .rec-summary {
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.12s;
+    }
+    .rec-summary:hover { background: #19231e; }
+    .rec-item.expanded .rec-summary {
+      background: #1a2720;
+      border: 1px solid #2d4537;
+      border-radius: 10px;
+    }
+    .rec-detail {
+      display: none;
+      background: var(--inset);
+      border: 1px solid #1c2621;
+      border-radius: 12px;
+      margin: 4px 0 8px 0;
+      padding: 14px 18px;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    .rec-item.expanded .rec-detail {
+      display: flex;
+    }
+    .rec-thumb {
+      width: 130px;
+      height: 96px;
+      background: #070a08;
+      border: 1px solid #233029;
+      border-radius: 10px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    /* Validation Metrics & Table */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .metric-card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 14px 18px;
+      border: 1px solid var(--line);
+    }
+    .val-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .val-table th {
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      border-bottom: 1px solid #1e2923;
+    }
+    .val-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #1a231e;
+    }
+
+    /* Standards Grid */
+    .standards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .stepper {
+      display: inline-flex;
+      align-items: center;
+      background: var(--inset);
+      border: 1px solid #2a3931;
+      border-radius: 10px;
+      padding: 2px 4px;
+      gap: 4px;
+    }
+    .stepper button {
+      width: 26px;
+      height: 28px;
+      background: #16201b;
+      color: var(--text);
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .stepper button:hover {
+      background: var(--green);
+      color: #ffffff;
+    }
+    .stepper input {
+      width: 52px;
+      text-align: center;
+      background: transparent;
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 0;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal-card {
+      width: 520px;
+      max-width: 94vw;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    @media (max-width: 980px) {
+      body { flex-direction: column; }
+      .sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; }
+      .nav-btn { width: auto; }
+      .session-box { display: none; }
+      .control-grid, .standards-grid, .metrics-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-badge">🌿</div>
+      <div class="brand-title">RiceTrack</div>
+    </div>
+
+    <button class="nav-btn active" data-tab="control" onclick="switchTab('control')">
+      <span>📷</span> Rover Control
+    </button>
+    <button class="nav-btn" data-tab="map" onclick="switchTab('map')">
+      <span>🗺️</span> Field Map
+    </button>
+    <button class="nav-btn" data-tab="records" onclick="switchTab('records')">
+      <span>📋</span> Records
+    </button>
+    <button class="nav-btn" data-tab="validation" onclick="switchTab('validation')">
+      <span>📈</span> Validation
+    </button>
+    <button class="nav-btn" data-tab="standards" onclick="switchTab('standards')">
+      <span>⚙️</span> Standards
+    </button>
+
+    <div class="nav-spacer"></div>
+
+    <div class="session-box">
+      <div class="session-title">Session 07 · Web</div>
+      <div class="session-sub">PhilRice Muñoz · ESP32</div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-area">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="page-title" id="pageTitle">Rover Control</div>
+        <span class="chip green" id="varietyChip">NSIC Rc 222 (Tubigan 18)</span>
+      </div>
+      <div class="topbar-right">
+        <a href="/api/manuals/download.pdf" class="btn primary" style="text-decoration:none; padding:5px 12px; font-size:12px;">
+          📘 PDF Manual &amp; Calibration Guide
+        </a>
+        <span class="chip gray" id="imuChip">IMU: Sim/Standby</span>
+        <span class="chip gray" id="motorLinkChip">Motors: Offline</span>
+        <span class="chip gray" id="gpsTopChip">GPS: No fix</span>
+        <span class="chip green" id="batteryChip">🔋 24V Ebike · 92%</span>
+      </div>
+    </header>
+
+    <!-- Global Alert / Auto-Drive Reminder Strip -->
+    <div class="status-banner" id="statusBanner">
+      <span id="statusBannerIcon">ℹ️</span>
+      <span id="statusBannerText"></span>
+    </div>
+
+    <!-- Scene Alert Strip: Human (red) / Object (orange) / Plant (green) -->
+    <div class="status-banner show gray" id="sceneBanner">
+      <span id="sceneBannerIcon">👁️</span>
+      <span id="sceneBannerText">Scene Alert · waiting for camera or photo</span>
+    </div>
+
+    <!-- TAB 1: ROVER CONTROL -->
+    <section class="tab-pane active" id="tab-control">
+      <div class="control-grid">
+        <!-- Left Column: Camera + Attitude Tiles -->
+        <div class="card">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <select id="camSelector" onchange="changeCamera(this.value)">
+              <option value="0">Camera 0</option>
+              <option value="1">Camera 1</option>
+              <option value="2">Camera 2</option>
+            </select>
+
+            <button class="btn seg active" id="lccOverlayBtn" onclick="toggleLccOverlay()">
+              LCC Overlay
+            </button>
+
+            <div style="flex:1;"></div>
+            <span class="chip gray" id="sourceChip">Standby</span>
+          </div>
+
+          <div class="camera-viewport" id="cameraViewport" onclick="onViewportClick()" title="Click to toggle between original and segmented LCC overlay">
+            <img id="cameraStreamImg" alt="Camera Feed" />
+            <div class="camera-placeholder" id="cameraPlaceholder">
+              <div style="font-size:28px;">📷</div>
+              <div style="font-size:14px; font-weight:700;">No live camera stream active</div>
+              <div style="font-size:12px; color:var(--muted);">
+                Connect a USB/CSI camera for live detection, or click <b>Upload Photo</b>
+              </div>
+            </div>
+            <div class="hud-badge" id="hudBadge"></div>
+          </div>
+
+          <div class="tiles-row">
+            <div class="att-tile" id="rollTile">
+              <div class="att-name">ROLL</div>
+              <div class="att-val" id="rollVal">0°</div>
+            </div>
+            <div class="att-tile" id="pitchTile">
+              <div class="att-name">PITCH</div>
+              <div class="att-val" id="pitchVal">0°</div>
+            </div>
+            <div class="att-tile" id="yawTile">
+              <div class="att-name">YAW / TURN</div>
+              <div class="att-val" id="yawVal" style="color:var(--good);">0°</div>
+            </div>
+            <div class="att-tile" id="speedTile">
+              <div class="att-name">SPEED</div>
+              <div class="att-val" id="speedVal">0.0 m/s</div>
+            </div>
+            <div class="att-tile" id="hueTile">
+              <div class="att-name">HUE</div>
+              <div class="att-val" id="hueVal">--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Drive Pad + Telemetry -->
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="card">
+            <div class="kv-row">
+              <span style="font-size:15px; font-weight:800;">Rover &amp; Train Drive</span>
+              <span class="chip gray" id="driveModeChip">MANUAL</span>
+            </div>
+
+            <div class="inset-box">
+              <div style="display:flex; gap:8px;">
+                <button class="btn" id="autoDriveBtn" style="flex:1;" onclick="toggleAutoDrive()">
+                  ▶ Auto Train (5s)
+                </button>
+                <select id="autoModeSelect" style="flex:1;" onchange="changeAutoMode(this.value)">
+                  <option value="train_pulse">Every 5s Run</option>
+                  <option value="stop_capture">5s + Sample</option>
+                </select>
+              </div>
+              <div id="autoReminderLbl" style="font-size:11px; font-weight:600; color:var(--muted);">
+                Train Mode Standby · Runs every 5s when Auto Drive is ON
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" id="autoCycleFill"></div>
+              </div>
+            </div>
+
+            <div class="dpad-wrap">
+              <div class="dpad-grid">
+                <div></div>
+                <button class="pad-btn" id="pad-forward"
+                  onmousedown="sendDrive('forward')" onmouseup="releaseDrive()"
+                  ontouchstart="sendDrive('forward'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();"
+                  title="Forward (W / Up)">↑</button>
+                <div></div>
+
+                <button class="pad-btn" id="pad-left"
+                  onmousedown="sendDrive('left')" onmouseup="releaseDrive()"
+                  ontouchstart="sendDrive('left'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();"
+                  title="Left (A / Left)">←</button>
+                <button class="pad-btn" id="pad-stop" onclick="sendDrive('stop')" title="Stop (Space)">▢</button>
+                <button class="pad-btn" id="pad-right"
+                  onmousedown="sendDrive('right')" onmouseup="releaseDrive()"
+                  ontouchstart="sendDrive('right'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();"
+                  title="Right (D / Right)">→</button>
+
+                <div></div>
+                <button class="pad-btn" id="pad-backward"
+                  onmousedown="sendDrive('backward')" onmouseup="releaseDrive()"
+                  ontouchstart="sendDrive('backward'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();"
+                  title="Backward (S / Down)">↓</button>
+                <div></div>
+              </div>
+            </div>
+
+            <div style="text-align:center; font-size:11px; color:var(--muted);">
+              WASD / Arrows / Pad steer in Manual &amp; Auto (5s) · T Auto · Space Stop
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:4px;">
+              <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="uploadPhotoFile(this)" />
+              <button class="btn" id="uploadBtn" style="flex:1;" onclick="onUploadBtnClick()">
+                📤 Upload Photo
+              </button>
+              <button class="btn primary" id="captureBtn" style="flex:1;" onclick="onCaptureEvaluateClick()">
+                Capture &amp; Evaluate
+              </button>
+            </div>
+          </div>
+
+          <!-- INSTRUCTED SEMI-AUTONOMOUS ROVING -->
+          <div class="card" id="instructedRovingCard" style="border: 1px solid #1e3a2b;">
+            <div class="kv-row">
+              <span style="font-size:15px; font-weight:800; color:var(--good);">🌾 Instructed Roving (Neo-6M + MPU-6050)</span>
+              <span class="chip gray" id="instructedStatusChip">STANDBY</span>
+            </div>
+            <div style="font-size:12px; color:var(--muted); margin-top:-4px;">
+              Semi-autonomous route execution using MPU-6050 90° heading turns &amp; camera crop health inspection.
+            </div>
+
+            <!-- Mission Routine Select -->
+            <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
+              <label style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Select Mission Routine:</label>
+              <select id="instructedPresetSelect" style="width:100%;" onchange="onPresetSelected(this.value)">
+                <option value="preset_4step_inspection">Preset 1: 4-Step Field Mission (5m R → 10m L → 4m L → Return)</option>
+                <option value="preset_u_turn_sweep">Preset 2: U-Turn Canopy Sweep (8m R → 4m R → 8m → Return)</option>
+                <option value="preset_straight_sampling">Preset 3: Linear Row Sampling (5m → 5m → 5m → Return)</option>
+                <option value="custom">⚙ Custom Step-by-Step Builder</option>
+              </select>
+            </div>
+
+            <!-- Steps Container with Select Dropdowns -->
+            <div id="instructedStepsContainer" style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+            </div>
+
+            <!-- Step Builder Add/Reset Controls -->
+            <div id="stepBuilderControls" style="display:none; gap:6px; margin-top:2px;">
+              <button class="btn" style="flex:1; font-size:11px;" onclick="addCustomStep()">+ Add Leg</button>
+              <button class="btn" style="flex:1; font-size:11px;" onclick="addReturnStep()">↩ Add Return</button>
+              <button class="btn" style="flex:1; font-size:11px;" onclick="resetStepsToDefault()">↺ Reset</button>
+            </div>
+
+            <!-- Live Mission Progress Monitor -->
+            <div id="instructedLiveBox" class="inset-box" style="display:none; margin-top:4px; background:#0f241a; border-left:3px solid var(--good);">
+              <div class="kv-row">
+                <span id="instructedPhaseText" style="font-weight:700; color:var(--good); font-size:12px;">Move 1 of 4: Driving 5.0m</span>
+                <span id="instructedGpsTag" style="font-size:10px; font-family:monospace; color:var(--muted);">GPS: --</span>
+              </div>
+              <div class="progress-bar" style="margin:4px 0;">
+                <div class="progress-fill" id="instructedProgressFill" style="width:0%;"></div>
+              </div>
+              <div class="kv-row" style="font-size:11px;">
+                <span id="instructedTimerText" style="color:var(--text);">Elapsed: 0s / 15s (3.0s/m)</span>
+                <span id="instructedYawText" style="color:var(--good); font-weight:700;">MPU Yaw: 0.0°</span>
+              </div>
+            </div>
+
+            <!-- Start / Abort Action Buttons -->
+            <div style="display:flex; gap:8px; margin-top:6px;">
+              <button class="btn primary" id="startInstructedBtn" style="flex:2; font-weight:800; padding:9px 14px;" onclick="startInstructedMission()">
+                🚀 Start Instructed Roving
+              </button>
+              <button class="btn danger" id="abortInstructedBtn" style="flex:1; font-weight:800; display:none; background:var(--red-line); border-color:var(--red-line); color:#fff;" onclick="abortInstructedMission()">
+                ⛔ Abort Mission
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="kv-row">
+              <span style="font-size:15px; font-weight:800;">Telemetry</span>
+              <span class="chip green" id="captureIdChip" style="display:none;"></span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-label">Camera</span>
+              <span class="kv-val" id="telCamera">Disconnected</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-label">ESP32 Link</span>
+              <span class="kv-val" id="telEsp32Link">Disconnected</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-label">Left Motor Driver</span>
+              <span class="kv-val" id="telLeftMotor">--</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-label">Right Motor Driver</span>
+              <span class="kv-val" id="telRightMotor">--</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-label">Leaf Color</span>
+              <span class="kv-val" id="telLeafColor">--</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-label">GPS</span>
+              <span class="kv-val" id="telGps">No fix</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="gpsFill" style="width:0%;"></div>
+            </div>
+            <div class="kv-row">
+              <span class="kv-label">Auto Path Log</span>
+              <span class="kv-val" id="telAutoPath" style="font-size:12px; color:var(--muted);">Standby (auto_drive_path.json)</span>
+            </div>
+            <div class="kv-row" style="align-items:flex-start;">
+              <span class="kv-label">Summary</span>
+              <span class="kv-val" id="telSummary" style="font-size:12px; color:var(--muted); max-width:68%;">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: FIELD MAP -->
+    <section class="tab-pane" id="tab-map">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <span class="btn">Session · PhilRice Plots ▾</span>
+        <span class="btn">All Statuses ▾</span>
+        <div style="flex:1;"></div>
+        <span class="chip blue" id="mapPathChip">🗺️ Auto Path: 0 cycles (auto_drive_path.json)</span>
+      </div>
+
+      <div class="map-canvas-wrap">
+        <canvas id="fieldMapCanvas"></canvas>
+      </div>
+
+      <div style="display:flex; gap:18px; font-size:12px; color:var(--muted); font-weight:600; flex-wrap:wrap;">
+        <span><b style="color:var(--good);">●</b> Healthy (3)</span>
+        <span><b style="color:var(--red-pin);">●</b> Needs inspection (2)</span>
+        <span><b style="color:var(--blue);">●</b> Auto Train GPS Path (every 5s → JSON + SQLite)</span>
+        <span>± GPS accuracy (m) · Click any pin or popup to open its Record</span>
+      </div>
+    </section>
+
+    <!-- TAB 3: RECORDS -->
+    <section class="tab-pane" id="tab-records">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <select id="recMonthFilter" onchange="loadRecords()"><option value="All">All Months</option></select>
+        <select id="recPlotFilter" onchange="loadRecords()"><option value="All">All Plots</option></select>
+        <select id="recVariantFilter" onchange="loadRecords()"><option value="All">All Variants</option></select>
+        <select id="recStatusFilter" onchange="loadRecords()"><option value="All">All Statuses</option></select>
+        <div style="flex:1;"></div>
+        <a href="/api/records/export.csv" class="btn" style="text-decoration:none;">📄 Field Report (CSV)</a>
+      </div>
+
+      <div class="card" style="flex:1;">
+        <div class="rec-header">
+          <div>ID</div>
+          <div>CAPTURED</div>
+          <div>PLOT</div>
+          <div>AVG HEIGHT</div>
+          <div>MEDIAN HUE</div>
+          <div>STATUS</div>
+        </div>
+        <div class="records-list" id="recordsList"></div>
+        <div style="font-size:12px; color:var(--muted); padding-top:4px;">
+          ℹ️ Preliminary assessment for decision support. Confirm with an agricultural specialist.
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: VALIDATION -->
+    <section class="tab-pane" id="tab-validation">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <span class="chip gray" id="valSummaryChip">0 paired samples</span>
+        <a href="/api/validation/export.csv" class="btn" style="text-decoration:none;">📥 Export CSV</a>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card" style="border-color:#1f4772;">
+          <div style="font-size:11px; font-weight:700; color:var(--blue-text);">HEIGHT MAE</div>
+          <div style="font-size:24px; font-weight:800; margin-top:4px;" id="valHeightMae">--</div>
+        </div>
+        <div class="metric-card" style="border-color:#1f4772;">
+          <div style="font-size:11px; font-weight:700; color:var(--blue-text);">HEIGHT RMSE</div>
+          <div style="font-size:24px; font-weight:800; margin-top:4px;" id="valHeightRmse">--</div>
+        </div>
+        <div class="metric-card" style="border-color:#1f5730;">
+          <div style="font-size:11px; font-weight:700; color:var(--good);">MEDIAN HUE MAE</div>
+          <div style="font-size:24px; font-weight:800; margin-top:4px;" id="valHueMae">--</div>
+        </div>
+        <div class="metric-card" style="border-color:#1f5730;">
+          <div style="font-size:11px; font-weight:700; color:var(--good);">MEDIAN HUE RMSE</div>
+          <div style="font-size:24px; font-weight:800; margin-top:4px;" id="valHueRmse">--</div>
+        </div>
+      </div>
+
+      <div style="font-size:12px; color:var(--muted);">
+        Validation uses the configured LCC thresholds. CV Hue is the median of segmented pixels; CIELAB is stored as supporting color data.
+      </div>
+
+      <div class="card" style="flex:1;">
+        <div class="kv-row">
+          <span style="font-size:16px; font-weight:800;">Paired Field Measurements</span>
+          <button class="btn primary" onclick="openValidationModal()">+ Add Manual Reading</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="val-table">
+            <thead>
+              <tr>
+                <th>Capture</th>
+                <th>CV height</th>
+                <th>Ref height</th>
+                <th>Height err</th>
+                <th>CV median hue</th>
+                <th>Ref hue</th>
+                <th>Hue err</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="valTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: STANDARDS -->
+    <section class="tab-pane" id="tab-standards">
+      <div>
+        <select id="stdVariety">
+          <option>Variety: NSIC Rc 222 (Tubigan 18)</option>
+        </select>
+      </div>
+
+      <div class="standards-grid">
+        <div class="card">
+          <div style="font-size:15px; font-weight:800;">Leaf Color (HSV Hue)</div>
+          <div style="font-size:12px; color:var(--muted);">
+            Median HSV Hue is used for leaf classification; CIELAB L*a*b* is logged alongside each sample.
+          </div>
+          <canvas id="hueBarCanvas" height="46" style="width:100%; height:46px;"></canvas>
+          <div class="kv-row">
+            <span class="kv-label">Healthy Hue Band</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div class="stepper">
+                <button onclick="stepInput('stdHueLo', -1)">−</button>
+                <input type="number" id="stdHueLo" min="25" max="85" value="48" onchange="updateStandardsPreview()" />
+                <button onclick="stepInput('stdHueLo', 1)">+</button>
+              </div>
+              <span style="color:var(--muted); font-weight:600;">to</span>
+              <div class="stepper">
+                <button onclick="stepInput('stdHueHi', -1)">−</button>
+                <input type="number" id="stdHueHi" min="25" max="85" value="75" onchange="updateStandardsPreview()" />
+                <button onclick="stepInput('stdHueHi', 1)">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-size:15px; font-weight:800;">Plant Height</div>
+          <div class="kv-row">
+            <span class="kv-label">Healthy Height Range</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div class="stepper">
+                <button onclick="stepInput('stdHeightLo', -1)">−</button>
+                <input type="number" id="stdHeightLo" min="10" max="250" value="98" onchange="updateStandardsPreview()" />
+                <button onclick="stepInput('stdHeightLo', 1)">+</button>
+              </div>
+              <span style="color:var(--muted); font-weight:600;">to</span>
+              <div class="stepper">
+                <button onclick="stepInput('stdHeightHi', -1)">−</button>
+                <input type="number" id="stdHeightHi" min="10" max="250" value="101" onchange="updateStandardsPreview()" />
+                <button onclick="stepInput('stdHeightHi', 1)">+</button>
+              </div>
+              <span style="color:var(--muted); font-weight:700;">cm</span>
+            </div>
+          </div>
+          <div class="kv-row">
+            <span class="kv-label">Camera Mounting Height</span>
+            <span class="kv-val" style="color:var(--good);">1.2 m</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-size:15px; font-weight:800;">Capture &amp; Auto-Drive Limits</div>
+          <div class="kv-row">
+            <span class="kv-label">GPS readings per capture</span>
+            <div class="stepper">
+              <button onclick="stepInput('stdGpsN', -1)">−</button>
+              <input type="number" id="stdGpsN" min="1" max="30" value="5" onchange="updateStandardsPreview()" />
+              <button onclick="stepInput('stdGpsN', 1)">+</button>
+            </div>
+          </div>
+          <div class="kv-row">
+            <span class="kv-label">Max tilt angle (°)</span>
+            <div class="stepper">
+              <button onclick="stepInput('stdTilt', -1)">−</button>
+              <input type="number" id="stdTilt" min="1" max="45" value="15" onchange="updateStandardsPreview()" />
+              <button onclick="stepInput('stdTilt', 1)">+</button>
+            </div>
+          </div>
+          <div class="kv-row">
+            <span class="kv-label">Train Auto-Drive cycle (s)</span>
+            <div class="stepper">
+              <button onclick="stepInput('stdAutoS', -1)">−</button>
+              <input type="number" id="stdAutoS" min="1" max="60" value="5" onchange="updateStandardsPreview()" />
+              <button onclick="stepInput('stdAutoS', 1)">+</button>
+            </div>
+          </div>
+          <div class="kv-row">
+            <span class="kv-label">Speed factor (seconds / meter)</span>
+            <div class="stepper">
+              <button onclick="stepInput('stdSecPerMeter', -0.5)">−</button>
+              <input type="number" id="stdSecPerMeter" min="0.5" max="30" step="0.5" value="3.0" onchange="updateStandardsPreview()" />
+              <button onclick="stepInput('stdSecPerMeter', 0.5)">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-size:15px; font-weight:800;">Calibration Info</div>
+          <div class="kv-row">
+            <span class="kv-label">Variety</span>
+            <span class="kv-val">NSIC Rc 222 (Tubigan 18)</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-label">Reference</span>
+            <span class="kv-val" style="color:var(--good);">IRRI 4-Panel LCC</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-label">Validated by</span>
+            <span class="kv-val">Sir Jasper Talada</span>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:auto;">
+            <button class="btn" style="flex:1;" onclick="resetStandardsDefaults()">Reset Defaults</button>
+            <button class="btn primary" id="saveStdBtn" style="flex:2;" onclick="saveStandards()">Save Standards</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Manual Validation Modal -->
+  <div class="modal-backdrop" id="valModal">
+    <div class="modal-card">
+      <div style="font-size:16px; font-weight:800;">Add Manual Validation Reading</div>
+      <div style="font-size:12px; color:var(--muted);">
+        Enter a reference measurement for an existing CV record. Reference values are stored in the validation table without modifying the original record.
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">CV Record</span>
+        <select id="modalRecordSelect" style="width:68%;"></select>
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Reference Height (cm)</span>
+        <input type="number" id="modalManualHeight" step="0.5" min="1" max="300" value="99.5" style="width:140px;" />
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Reference Hue (0–179)</span>
+        <input type="number" id="modalManualHue" step="1" min="0" max="179" value="58.5" style="width:140px;" />
+      </div>
+      <div class="kv-row">
+        <span class="kv-label">Notes</span>
+        <input type="text" id="modalNotes" placeholder="Optional observer or calibration note" style="width:68%;" />
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:6px;">
+        <button class="btn" onclick="closeValidationModal()">Cancel</button>
+        <button class="btn primary" onclick="submitValidationReading()">Save Reading</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let state = {
+      activeTab: "control",
+      lccOverlay: true,
+      showingSegmented: true,
+      hasStillImage: false,
+      originalDataUrl: null,
+      segmentedDataUrl: null,
+      camConnected: false,
+      autoActive: false,
+      autoIntervalS: 5,
+      standards: { hue: [48, 75], height: [98, 101], gps_n: 5, tilt: 15, auto_drive_s: 5 },
+      autoPath: [],
+      selectedMapPin: "A-02-06"
+    };
+
+    const MAP_PINS = [
+      { id: "A-01-03", x: 0.145, y: 0.79, bad: false, r: 6.0, acc: 1.6, when: "10:12 AM", detail: "Plot A-01 · 99.4 cm · hue 50 · healthy green" },
+      { id: "A-03-01", x: 0.310, y: 0.79, bad: false, r: 6.0, acc: 1.9, when: "10:31 AM", detail: "Plot A-02 · 99.9 cm · hue 49 · healthy green" },
+      { id: "A-03-02", x: 0.485, y: 0.79, bad: false, r: 6.0, acc: 1.4, when: "10:44 AM", detail: "Plot A-02 · 98.7 cm · hue 55 · healthy green" },
+      { id: "A-02-02", x: 0.665, y: 0.79, bad: true,  r: 6.0, acc: 2.1, when: "10:59 AM", detail: "Plot A-03 · 100.1 cm · hue 43 · light green" },
+      { id: "A-02-06", x: 0.840, y: 0.79, bad: true,  r: 9.0, acc: 1.8, when: "11:53 AM", detail: "Plot A-04 · 96.2 cm · hue 42 · maturing panicles" }
+    ];
+
+    function switchTab(tabName) {
+      state.activeTab = tabName;
+      document.querySelectorAll(".nav-btn").forEach(b => {
+        b.classList.toggle("active", b.dataset.tab === tabName);
+      });
+      document.querySelectorAll(".tab-pane").forEach(p => {
+        p.classList.toggle("active", p.id === "tab-" + tabName);
+      });
+      const titles = {
+        control: "Rover Control",
+        map: "Field Map",
+        records: "Inspection Records",
+        validation: "Validation & Accuracy",
+        standards: "Standards & Calibration"
+      };
+      document.getElementById("pageTitle").textContent = titles[tabName] || "RiceTrack";
+
+      if (tabName === "map") {
+        refreshFieldMapData();
+      } else if (tabName === "records") {
+        loadRecords();
+      } else if (tabName === "validation") {
+        loadValidation();
+      } else if (tabName === "standards") {
+        drawHueBar();
+      }
+    }
+
+    async function initApp() {
+      // Load initial standards
+      try {
+        const res = await fetch("/api/standards");
+        const std = await res.json();
+        applyStandardsToUI(std);
+      } catch (e) {}
+
+      // Initialize Semi-Autonomous Instructed Roving
+      initInstructedRoving();
+
+      // Start telemetry polling
+      setInterval(pollTelemetry, 500);
+      pollTelemetry();
+
+      window.addEventListener("resize", () => {
+        if (state.activeTab === "map") drawFieldMap();
+        if (state.activeTab === "standards") drawHueBar();
+      });
+
+      setupMapInteraction();
+      setupKeyboardShortcuts();
+    }
+
+    function motorSideLabel(side, telemetryOk, simulating) {
+      if (!side || !side.reported) {
+        return { text: "No feedback", color: "var(--muted)" };
+      }
+      if (!side.connected) {
+        return { text: "Disconnected", color: "var(--red-text)" };
+      }
+      if (!telemetryOk && !simulating) {
+        return { text: "Stale · no feedback", color: "var(--muted)" };
+      }
+      const dutyPct = Math.round(Math.abs(side.duty || 0) * 100);
+      const dir = (side.direction || "stop").toUpperCase();
+      if (side.enabled) {
+        return { text: `Connected · ${dir} ${dutyPct}%`, color: "var(--good)" };
+      }
+      return { text: "Connected · Idle", color: "var(--good)" };
+    }
+
+    function applyMotorLink(ml) {
+      const esp = document.getElementById("telEsp32Link");
+      const leftEl = document.getElementById("telLeftMotor");
+      const rightEl = document.getElementById("telRightMotor");
+      const chip = document.getElementById("motorLinkChip");
+      if (!esp || !leftEl || !rightEl || !chip) return;
+
+      const telemetryOk = !!ml.telemetry_ok;
+      const simulating = !!ml.simulating;
+      const hostAck = !!ml.host_ack;
+      let espText, espColor, chipText, chipCls;
+
+      if (simulating) {
+        espText = "Simulated (no ESP32)";
+        espColor = "var(--warn-text)";
+        chipText = "Motors: Simulated";
+        chipCls = "chip orange";
+      } else if (telemetryOk && hostAck) {
+        espText = "Connected · 2-way link";
+        espColor = "var(--good)";
+        chipText = "Motors: Online";
+        chipCls = "chip green";
+      } else if (telemetryOk) {
+        espText = "Connected · host not acknowledged";
+        espColor = "var(--warn-text)";
+        chipText = "Motors: 1-way";
+        chipCls = "chip orange";
+      } else if (ml.esp32_connected) {
+        espText = "Port open · waiting telemetry";
+        espColor = "var(--warn-text)";
+        chipText = "Motors: Handshake…";
+        chipCls = "chip orange";
+      } else {
+        espText = "Disconnected";
+        espColor = "var(--red-text)";
+        chipText = "Motors: Offline";
+        chipCls = "chip red";
+      }
+
+      esp.textContent = espText;
+      esp.style.color = espColor;
+      chip.textContent = chipText;
+      chip.className = chipCls;
+
+      const l = motorSideLabel(ml.left, telemetryOk, simulating);
+      const r = motorSideLabel(ml.right, telemetryOk, simulating);
+      leftEl.textContent = l.text;
+      leftEl.style.color = l.color;
+      rightEl.textContent = r.text;
+      rightEl.style.color = r.color;
+    }
+
+    async function pollTelemetry() {
+      try {
+        const res = await fetch("/api/telemetry");
+        const t = await res.json();
+
+        state.camConnected = t.camera_connected;
+        state.autoActive = t.auto_active;
+        state.autoIntervalS = t.auto_interval_s || 5;
+
+        // Attitude tiles
+        const tiltLimit = state.standards.tilt || 15;
+        const rollDanger = Math.abs(t.roll) > tiltLimit;
+        const pitchDanger = Math.abs(t.pitch) > tiltLimit;
+
+        document.getElementById("rollTile").classList.toggle("danger", rollDanger);
+        document.getElementById("pitchTile").classList.toggle("danger", pitchDanger);
+        document.getElementById("rollVal").textContent = `${Math.round(t.roll)}°`;
+        document.getElementById("pitchVal").textContent = `${Math.round(t.pitch)}°`;
+        const yawEl = document.getElementById("yawVal");
+        if (yawEl) yawEl.textContent = `${Math.round(t.yaw || 0)}°`;
+        document.getElementById("speedVal").textContent = `${t.speed.toFixed(1)} m/s`;
+
+        document.getElementById("imuChip").textContent = t.imu_ok ? "IMU: MPU-6050 OK" : "IMU: Sim/Standby";
+        document.getElementById("imuChip").className = "chip " + (t.imu_ok ? "green" : "gray");
+
+        // ESP32 serial link + left/right motor driver monitoring
+        applyMotorLink(t.motor_link || {});
+
+        // GPS
+        const gpsChip = document.getElementById("gpsTopChip");
+        const telGps = document.getElementById("telGps");
+        const gpsFill = document.getElementById("gpsFill");
+        if (t.gps_state === "fix") {
+          const gStr = `${t.lat.toFixed(5)}, ${t.lon.toFixed(5)} (${t.sats} sats)`;
+          gpsChip.textContent = "GPS: " + gStr;
+          gpsChip.className = "chip green";
+          telGps.textContent = gStr;
+          telGps.style.color = "var(--good)";
+          gpsFill.style.width = "100%";
+        } else if (t.gps_state === "searching") {
+          gpsChip.textContent = `GPS: Searching (${t.sats} sats)`;
+          gpsChip.className = "chip orange";
+          telGps.textContent = `Searching (${t.sats} sats)`;
+          telGps.style.color = "var(--warn-text)";
+          gpsFill.style.width = "35%";
+        } else {
+          gpsChip.textContent = "GPS: No fix";
+          gpsChip.className = "chip gray";
+          telGps.textContent = "No fix";
+          telGps.style.color = "var(--muted)";
+          gpsFill.style.width = "0%";
+        }
+
+        // Camera stream vs Still Image
+        if (!state.hasStillImage) {
+          const imgEl = document.getElementById("cameraStreamImg");
+          const phEl = document.getElementById("cameraPlaceholder");
+          if (t.camera_connected) {
+            if (!imgEl.src.includes("/api/video_feed")) {
+              imgEl.src = `/api/video_feed?overlay=${state.lccOverlay ? 1 : 0}&t=${Date.now()}`;
+            }
+            imgEl.style.display = "block";
+            phEl.style.display = "none";
+            document.getElementById("sourceChip").textContent = "Live";
+            document.getElementById("sourceChip").className = "chip green";
+            document.getElementById("telCamera").textContent = t.camera_label;
+            document.getElementById("telCamera").style.color = "var(--good)";
+
+            if (t.live_hue !== null) {
+              document.getElementById("hueVal").textContent = Math.round(t.live_hue);
+              document.getElementById("hueTile").classList.toggle("danger", !t.live_in_band);
+              document.getElementById("telLeafColor").textContent = `${t.live_panel} · Hue ${Math.round(t.live_hue)}`;
+              document.getElementById("telLeafColor").style.color = t.live_in_band ? "var(--good)" : "var(--warn-text)";
+              document.getElementById("telSummary").textContent = t.live_summary || "--";
+            }
+          } else {
+            imgEl.style.display = "none";
+            phEl.style.display = "flex";
+            document.getElementById("sourceChip").textContent = "Standby";
+            document.getElementById("sourceChip").className = "chip gray";
+            document.getElementById("telCamera").textContent = "Disconnected";
+            document.getElementById("telCamera").style.color = "var(--muted)";
+          }
+        }
+
+        // Auto-Drive state & banner
+        const autoBtn = document.getElementById("autoDriveBtn");
+        const modeChip = document.getElementById("driveModeChip");
+        const remLbl = document.getElementById("autoReminderLbl");
+        const fillEl = document.getElementById("autoCycleFill");
+        const banner = document.getElementById("statusBanner");
+        const bannerText = document.getElementById("statusBannerText");
+        const hud = document.getElementById("hudBadge");
+
+        if (t.auto_active) {
+          modeChip.textContent = `AUTO · ${t.auto_direction.toUpperCase()} (${t.auto_interval_s}s)`;
+          modeChip.className = "chip green";
+          autoBtn.textContent = `⏸ Stop Auto (${t.auto_countdown_s}s)`;
+          autoBtn.className = "btn primary";
+          remLbl.textContent = t.auto_reminder;
+          remLbl.style.color = "var(--good)";
+          const pct = Math.min(100, Math.max(0, ((t.auto_interval_s - t.auto_countdown_s) / Math.max(1, t.auto_interval_s)) * 100));
+          fillEl.style.width = (t.auto_countdown_s === 0 ? 100 : pct) + "%";
+          highlightPad(t.auto_countdown_s > 0 ? t.auto_direction : "stop");
+
+          if (!state.hasStillImage) {
+            hud.textContent = `AUTO DRIVE (TRAIN MODE) · Cycle #${t.auto_cycle} · Next ${t.auto_interval_s}s run in ${t.auto_countdown_s}s`;
+            hud.style.display = "block";
+          }
+        } else {
+          modeChip.textContent = "MANUAL";
+          modeChip.className = "chip gray";
+          autoBtn.textContent = `▶ Auto Train (${t.auto_interval_s}s)`;
+          autoBtn.className = "btn";
+          remLbl.textContent = t.auto_reminder || `Train Mode Standby · Runs every ${t.auto_interval_s}s when Auto Drive is ON`;
+          remLbl.style.color = "var(--muted)";
+          fillEl.style.width = "0%";
+          if (!state.hasStillImage) hud.style.display = "none";
+        }
+
+        if (t.latest_path_text) {
+          document.getElementById("telAutoPath").textContent = t.latest_path_text;
+          document.getElementById("telAutoPath").style.color = "var(--good)";
+        }
+
+        const tilted = Math.max(Math.abs(t.roll), Math.abs(t.pitch)) > tiltLimit;
+        if (tilted) {
+          banner.className = "status-banner show red";
+          bannerText.textContent = `Tilt exceeds ${tiltLimit}° limit. Level the rover before driving or capturing.`;
+        } else if (t.auto_active) {
+          banner.className = "status-banner show " + (t.auto_countdown_s === t.auto_interval_s ? "blue" : "green");
+          bannerText.textContent = `REMINDER: ${t.auto_reminder} · Press Space or Stop to return to Manual`;
+        } else {
+          banner.className = "status-banner";
+        }
+
+        // Instructed Semi-Autonomous Roving status
+        applyInstructedStatus(t.instructed || {});
+
+        // Live scene alert only while streaming (a frozen photo keeps its own alert)
+        if (!state.hasStillImage) {
+          applySceneAlert(t.scene_alert || null);
+        }
+      } catch (err) {}
+    }
+
+    function applySceneAlert(sa) {
+      const el = document.getElementById("sceneBanner");
+      const txt = document.getElementById("sceneBannerText");
+      const icon = document.getElementById("sceneBannerIcon");
+      if (!el) return;
+      if (!sa) {
+        el.className = "status-banner show gray";
+        icon.textContent = "👁️";
+        txt.textContent = "Scene Alert · waiting for camera or photo";
+        return;
+      }
+      el.className = "status-banner show " + sa.level;
+      icon.textContent = sa.has_human ? "🚨" : sa.has_objects ? "📦" : sa.has_plants ? "🌱" : "👁️";
+      txt.textContent = "Scene Alert · " + sa.message;
+    }
+
+    function highlightPad(cmd) {
+      ["forward", "backward", "left", "right", "stop"].forEach(k => {
+        const el = document.getElementById("pad-" + k);
+        if (el) el.classList.toggle("active", k === cmd);
+      });
+    }
+
+    async function sendDrive(cmd) {
+      highlightPad(cmd);
+      await fetch("/api/drive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command: cmd })
+      });
+    }
+
+    async function releaseDrive() {
+      if (!state.autoActive) {
+        highlightPad(null);
+        await fetch("/api/drive", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: "stop" })
+        });
+      }
+    }
+
+    async function toggleAutoDrive() {
+      const enable = !state.autoActive;
+      const mode = document.getElementById("autoModeSelect").value;
+      await fetch("/api/auto_drive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enable, mode, interval_s: state.autoIntervalS })
+      });
+      pollTelemetry();
+    }
+
+    async function changeAutoMode(mode) {
+      await fetch("/api/auto_drive/mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode })
+      });
+    }
+
+    // =========================================================================
+    // INSTRUCTED SEMI-AUTONOMOUS ROVING
+    // =========================================================================
+    let instructedPresets = [];
+    let currentSteps = [];
+    let secPerMeter = 3.0;
+
+    async function initInstructedRoving() {
+      try {
+        const res = await fetch("/api/instructed_roving/presets");
+        const data = await res.json();
+        instructedPresets = data.presets || [];
+        secPerMeter = Number(data.sec_per_meter) || 3.0;
+
+        const pSel = document.getElementById("instructedPresetSelect");
+        if (pSel && instructedPresets.length > 0) {
+          onPresetSelected(pSel.value || instructedPresets[0].id);
+        }
+      } catch (e) {
+        resetStepsToDefault();
+      }
+    }
+
+    function onPresetSelected(presetId) {
+      const controls = document.getElementById("stepBuilderControls");
+      if (presetId === "custom") {
+        if (controls) controls.style.display = "flex";
+        if (!currentSteps || currentSteps.length === 0) {
+          resetStepsToDefault();
+        } else {
+          renderSteps(currentSteps);
+        }
+        return;
+      }
+      if (controls) controls.style.display = "none";
+      const found = instructedPresets.find(p => p.id === presetId);
+      if (found) {
+        currentSteps = JSON.parse(JSON.stringify(found.steps));
+        renderSteps(currentSteps);
+      }
+    }
+
+    function renderSteps(steps) {
+      const container = document.getElementById("instructedStepsContainer");
+      if (!container) return;
+      container.innerHTML = "";
+
+      const distOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30];
+
+      steps.forEach((s, idx) => {
+        const row = document.createElement("div");
+        row.className = "inset-box";
+        row.style.background = "#131e17";
+        row.style.border = "1px solid #233428";
+        row.style.padding = "8px 10px";
+        row.style.gap = "6px";
+
+        if (s.type === "return") {
+          row.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:700; font-size:12px; color:var(--warn-text);">Move ${idx + 1}: Final Return</span>
+              <span class="chip orange" style="font-size:10px;">INVERTED RETRACE</span>
+            </div>
+            <div style="font-size:11px; color:var(--muted);">
+              Rover executes a 180° turn via MPU-6050, then retraces all completed legs in reverse order directly back to starting position (0,0).
+            </div>
+          `;
+        } else {
+          const moveTime = Math.round((s.distance_m || 5) * secPerMeter);
+          let distOptsHtml = distOptions.map(d => `<option value="${d}" ${d === Number(s.distance_m) ? 'selected' : ''}>${d} meter${d > 1 ? 's' : ''} (${Math.round(d * secPerMeter)}s)</option>`).join("");
+
+          row.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:700; font-size:12px; color:var(--good);">Move ${idx + 1} Leg</span>
+              <span class="chip gray" style="font-size:10px;">${moveTime}s run</span>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+              <div>
+                <label style="font-size:10px; color:var(--muted); font-weight:600;">Distance:</label>
+                <select class="step-input-dist" style="width:100%; font-size:11px; padding:4px 6px;" onchange="updateStepValue(${idx}, 'distance_m', this.value)">
+                  ${distOptsHtml}
+                </select>
+              </div>
+              <div>
+                <label style="font-size:10px; color:var(--muted); font-weight:600;">Turn (MPU-6050):</label>
+                <select class="step-input-turn" style="width:100%; font-size:11px; padding:4px 6px;" onchange="updateStepValue(${idx}, 'turn', this.value)">
+                  <option value="none" ${s.turn === 'none' ? 'selected' : ''}>Straight (No Turn)</option>
+                  <option value="right" ${s.turn === 'right' ? 'selected' : ''}>Turn Right (90° MPU)</option>
+                  <option value="left" ${s.turn === 'left' ? 'selected' : ''}>Turn Left (90° MPU)</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+              <label style="font-size:11px; color:var(--text); display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input type="checkbox" ${s.capture ? 'checked' : ''} onchange="updateStepValue(${idx}, 'capture', this.checked)">
+                📷 Capture &amp; Inspect Crop Health at Station
+              </label>
+              ${document.getElementById("instructedPresetSelect")?.value === "custom" && steps.length > 1 ? `<button class="btn" style="padding:2px 8px; font-size:10px; color:var(--red-text);" onclick="removeStep(${idx})">✕</button>` : ''}
+            </div>
+          `;
+        }
+        container.appendChild(row);
+      });
+    }
+
+    function updateStepValue(idx, field, val) {
+      if (!currentSteps[idx]) return;
+      if (field === "distance_m") currentSteps[idx].distance_m = parseFloat(val);
+      else if (field === "turn") currentSteps[idx].turn = val;
+      else if (field === "capture") currentSteps[idx].capture = Boolean(val);
+      renderSteps(currentSteps);
+    }
+
+    function addCustomStep() {
+      const idx = currentSteps.length + 1;
+      const returnIdx = currentSteps.findIndex(s => s.type === "return");
+      const newStep = { step: idx, type: "leg", distance_m: 5.0, turn: "none", capture: true };
+      if (returnIdx !== -1) {
+        currentSteps.splice(returnIdx, 0, newStep);
+      } else {
+        currentSteps.push(newStep);
+      }
+      renderSteps(currentSteps);
+    }
+
+    function addReturnStep() {
+      if (currentSteps.some(s => s.type === "return")) return;
+      currentSteps.push({ step: currentSteps.length + 1, type: "return", distance_m: 0.0, turn: "none", capture: false });
+      renderSteps(currentSteps);
+    }
+
+    function removeStep(idx) {
+      currentSteps.splice(idx, 1);
+      renderSteps(currentSteps);
+    }
+
+    function resetStepsToDefault() {
+      currentSteps = [
+        { step: 1, type: "leg", distance_m: 5.0, turn: "right", capture: true },
+        { step: 2, type: "leg", distance_m: 10.0, turn: "left", capture: true },
+        { step: 3, type: "leg", distance_m: 4.0, turn: "left", capture: true },
+        { step: 4, type: "return", distance_m: 0.0, turn: "none", capture: false }
+      ];
+      const pSel = document.getElementById("instructedPresetSelect");
+      if (pSel) pSel.value = "preset_4step_inspection";
+      const controls = document.getElementById("stepBuilderControls");
+      if (controls) controls.style.display = "none";
+      renderSteps(currentSteps);
+    }
+
+    async function startInstructedMission() {
+      const presetId = document.getElementById("instructedPresetSelect")?.value || "preset_4step_inspection";
+      const stepsPayload = currentSteps.map((s, idx) => ({
+        step: idx + 1,
+        type: s.type || "leg",
+        distance_m: parseFloat(s.distance_m || 0),
+        turn: s.turn || "none",
+        capture: Boolean(s.capture)
+      }));
+
+      const res = await fetch("/api/instructed_roving/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preset_id: presetId, steps: stepsPayload })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        alert(data.error || "Could not start instructed roving");
+      }
+      pollTelemetry();
+    }
+
+    async function abortInstructedMission() {
+      await fetch("/api/instructed_roving/stop", { method: "POST" });
+      pollTelemetry();
+    }
+
+    function applyInstructedStatus(inst) {
+      const liveBox = document.getElementById("instructedLiveBox");
+      const chip = document.getElementById("instructedStatusChip");
+      const startBtn = document.getElementById("startInstructedBtn");
+      const abortBtn = document.getElementById("abortInstructedBtn");
+      const phaseTxt = document.getElementById("instructedPhaseText");
+      const timerTxt = document.getElementById("instructedTimerText");
+      const yawTxt = document.getElementById("instructedYawText");
+      const fill = document.getElementById("instructedProgressFill");
+      const gpsTag = document.getElementById("instructedGpsTag");
+
+      if (!liveBox || !chip) return;
+
+      if (inst.active) {
+        liveBox.style.display = "flex";
+        chip.textContent = `ROVING · STEP ${inst.current_step}/${inst.total_steps}`;
+        chip.className = "chip green";
+        if (startBtn) startBtn.style.display = "none";
+        if (abortBtn) abortBtn.style.display = "inline-flex";
+
+        if (phaseTxt) phaseTxt.textContent = inst.phase_detail || "Executing mission...";
+        if (gpsTag) gpsTag.textContent = inst.start_gps ? `Start GPS: ${inst.start_gps}` : "GPS: Tracking";
+        if (yawTxt) yawTxt.textContent = `MPU Yaw: ${inst.current_yaw}°`;
+
+        if (inst.phase === "driving") {
+          if (timerTxt) timerTxt.textContent = `Elapsed: ${inst.elapsed_s}s / ${inst.target_s}s (${secPerMeter}s/m)`;
+          const pct = Math.min(100, Math.round((inst.elapsed_s / Math.max(1, inst.target_s)) * 100));
+          if (fill) fill.style.width = pct + "%";
+        } else if (inst.phase === "turning") {
+          if (timerTxt) timerTxt.textContent = `Target Yaw Turn: ${inst.target_yaw}°`;
+          const pct = Math.min(100, Math.round((Math.abs(inst.current_yaw) / Math.max(1, inst.target_yaw)) * 100));
+          if (fill) fill.style.width = pct + "%";
+        } else if (inst.phase === "capturing") {
+          if (timerTxt) timerTxt.textContent = "Crop Health Capture & Analysis in progress...";
+          if (fill) fill.style.width = "100%";
+        } else {
+          if (fill) fill.style.width = "50%";
+        }
+      } else {
+        if (startBtn) startBtn.style.display = "inline-flex";
+        if (abortBtn) abortBtn.style.display = "none";
+
+        if (inst.phase === "completed") {
+          liveBox.style.display = "flex";
+          chip.textContent = "COMPLETED ✓";
+          chip.className = "chip green";
+          if (phaseTxt) phaseTxt.textContent = inst.phase_detail || "Mission Completed! Rover is back at initial position.";
+          if (fill) fill.style.width = "100%";
+        } else if (inst.phase === "aborted") {
+          liveBox.style.display = "flex";
+          chip.textContent = "ABORTED ✕";
+          chip.className = "chip red";
+          if (phaseTxt) phaseTxt.textContent = inst.phase_detail || "Mission Aborted";
+          if (fill) fill.style.width = "0%";
+        } else {
+          liveBox.style.display = "none";
+          chip.textContent = "STANDBY";
+          chip.className = "chip gray";
+        }
+      }
+    }
+
+    async function changeCamera(index) {
+      await fetch("/api/camera/select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ index: parseInt(index, 10) })
+      });
+    }
+
+    function toggleLccOverlay() {
+      state.lccOverlay = !state.lccOverlay;
+      document.getElementById("lccOverlayBtn").classList.toggle("active", state.lccOverlay);
+      if (state.camConnected && !state.hasStillImage) {
+        document.getElementById("cameraStreamImg").src = `/api/video_feed?overlay=${state.lccOverlay ? 1 : 0}&t=${Date.now()}`;
+      }
+    }
+
+    async function loadSampleImage(samplePath) {
+      if (!samplePath) return;
+      const res = await fetch("/api/evaluate_sample", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: samplePath })
+      });
+      const data = await res.json();
+      handleEvaluatedResult(data);
+    }
+
+    function onUploadBtnClick() {
+      if (state.hasStillImage) {
+        clearStillImage();
+      } else {
+        document.getElementById("photoInput").click();
+      }
+    }
+
+    async function uploadPhotoFile(input) {
+      if (!input.files || !input.files[0]) return;
+      const formData = new FormData();
+      formData.append("file", input.files[0]);
+      const res = await fetch("/api/evaluate_upload", {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+      handleEvaluatedResult(data);
+      input.value = "";
+    }
+
+    async function onCaptureEvaluateClick() {
+      if (state.hasStillImage) {
+        clearStillImage();
+        return;
+      }
+      if (state.camConnected) {
+        const res = await fetch("/api/capture_live", { method: "POST" });
+        const data = await res.json();
+        handleEvaluatedResult(data);
+      } else {
+        document.getElementById("photoInput").click();
+      }
+    }
+
+    function handleEvaluatedResult(data) {
+      if (data.scene_alert) applySceneAlert(data.scene_alert);
+      if (data.error) {
+        document.getElementById("sourceChip").textContent = "No vegetation";
+        document.getElementById("sourceChip").className = "chip orange";
+        document.getElementById("telSummary").textContent = data.error;
+        if (data.original_image) {
+          state.hasStillImage = true;
+          state.originalDataUrl = data.original_image;
+          state.segmentedDataUrl = null;
+          const imgEl = document.getElementById("cameraStreamImg");
+          imgEl.src = data.original_image;
+          imgEl.style.display = "block";
+          document.getElementById("cameraPlaceholder").style.display = "none";
+          document.getElementById("uploadBtn").textContent = "✖ Clear Photo";
+        }
+        return;
+      }
+
+      state.hasStillImage = true;
+      state.originalDataUrl = data.original_image;
+      state.segmentedDataUrl = data.segmented_image;
+      state.showingSegmented = true;
+
+      const imgEl = document.getElementById("cameraStreamImg");
+      imgEl.src = state.segmentedDataUrl;
+      imgEl.style.display = "block";
+      document.getElementById("cameraPlaceholder").style.display = "none";
+
+      const hud = document.getElementById("hudBadge");
+      hud.textContent = "Segmented overlay · Click image for original";
+      hud.style.display = "block";
+
+      const healthy = data.status === "Healthy";
+      document.getElementById("hueVal").textContent = Math.round(data.median_hue);
+      document.getElementById("hueTile").classList.toggle("danger", !healthy);
+      document.getElementById("telLeafColor").textContent = `${data.is_lcc_chart ? "4-Panel LCC" : data.panel} · Hue ${Math.round(data.median_hue)}`;
+      document.getElementById("telLeafColor").style.color = healthy ? "var(--good)" : "var(--red-text)";
+      document.getElementById("sourceChip").textContent = data.is_lcc_chart ? "4-Panel LCC" : data.status;
+      document.getElementById("sourceChip").className = "chip " + (healthy ? "green" : "red");
+      document.getElementById("telSummary").textContent = data.saved_file ? `${data.summary} · Saved to ${data.saved_file}` : data.summary;
+
+      const capChip = document.getElementById("captureIdChip");
+      capChip.textContent = data.record_id;
+      capChip.style.display = "inline-flex";
+      document.getElementById("telCamera").textContent = `Saved (${data.record_id})`;
+      document.getElementById("telCamera").style.color = "var(--good)";
+
+      document.getElementById("uploadBtn").textContent = state.camConnected ? "↩ Resume Live" : "✖ Clear Photo";
+      document.getElementById("captureBtn").textContent = "Saved ✓ (Clear)";
+    }
+
+    function clearStillImage() {
+      state.hasStillImage = false;
+      state.originalDataUrl = null;
+      state.segmentedDataUrl = null;
+      document.getElementById("uploadBtn").textContent = "📤 Upload Photo";
+      document.getElementById("captureBtn").textContent = "Capture & Evaluate";
+      document.getElementById("hudBadge").style.display = "none";
+      document.getElementById("captureIdChip").style.display = "none";
+      pollTelemetry();
+    }
+
+    function onViewportClick() {
+      if (!state.hasStillImage) {
+        onCaptureEvaluateClick();
+        return;
+      }
+      if (!state.segmentedDataUrl || !state.originalDataUrl) return;
+      state.showingSegmented = !state.showingSegmented;
+      document.getElementById("cameraStreamImg").src = state.showingSegmented ? state.segmentedDataUrl : state.originalDataUrl;
+      document.getElementById("hudBadge").textContent = state.showingSegmented
+        ? "Segmented overlay · Click image for original"
+        : "Original image · Click image for overlay";
+    }
+
+    /* FIELD MAP */
+    async function refreshFieldMapData() {
+      try {
+        const res = await fetch("/api/auto_path");
+        const data = await res.json();
+        state.autoPath = data.path || [];
+        document.getElementById("mapPathChip").textContent = `🗺️ Auto Path: ${state.autoPath.length} cycles (auto_drive_path.json)`;
+      } catch (e) {}
+      drawFieldMap();
+    }
+
+    function drawFieldMap() {
+      const canvas = document.getElementById("fieldMapCanvas");
+      if (!canvas) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+      const w = rect.width;
+      const h = rect.height;
+
+      ctx.fillStyle = "#0e1511";
+      ctx.fillRect(0, 0, w, h);
+
+      const plots = [
+        { name: "PLOT A-01 · NSIC Rc 222", x: 0.025 * w, y: 0.06 * h, pw: 0.220 * w, ph: 0.58 * h, bad: false },
+        { name: "PLOT A-02 · NSIC Rc 222", x: 0.265 * w, y: 0.06 * h, pw: 0.220 * w, ph: 0.58 * h, bad: false },
+        { name: "PLOT A-03 · NSIC Rc 222", x: 0.515 * w, y: 0.06 * h, pw: 0.220 * w, ph: 0.58 * h, bad: true },
+        { name: "PLOT A-04 · NSIC Rc 222", x: 0.755 * w, y: 0.06 * h, pw: 0.220 * w, ph: 0.58 * h, bad: true }
+      ];
+
+      plots.forEach(pl => {
+        ctx.fillStyle = pl.bad ? "#1c2414" : "#13261a";
+        ctx.strokeStyle = pl.bad ? "#6e521b" : "#245233";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.roundRect(pl.x, pl.y, pl.pw, pl.ph, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        // Crop rows
+        ctx.strokeStyle = pl.bad ? "#33381d" : "#243b2a";
+        ctx.lineWidth = 1;
+        for (let r = 1; r < 6; r++) {
+          const rx = pl.x + pl.pw * (r / 6.0);
+          ctx.beginPath();
+          ctx.moveTo(rx, pl.y + 30);
+          ctx.lineTo(rx, pl.y + pl.ph - 8);
+          ctx.stroke();
+        }
+
+        // Rc222 placard
+        const sw = 38, sh = 16;
+        const sx = pl.x + pl.pw / 2 - sw / 2;
+        const sy = pl.y + pl.ph * 0.52;
+        ctx.fillStyle = "#e8f0ec";
+        ctx.beginPath();
+        ctx.roundRect(sx, sy, sw, sh, 3);
+        ctx.fill();
+        ctx.fillStyle = "#111814";
+        ctx.font = "bold 9px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Rc222", sx + sw / 2, sy + 11);
+
+        ctx.fillStyle = pl.bad ? "#e3b341" : "#3fb950";
+        ctx.font = "bold 11px Inter, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(pl.name, pl.x + 10, pl.y + 20);
+      });
+
+      // Rat barrier fence
+      const by = 0.675 * h;
+      ctx.strokeStyle = "#9fb1a6";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(0.025 * w, by);
+      ctx.lineTo(0.975 * w, by);
+      ctx.stroke();
+
+      for (let i = 0; i < 15; i++) {
+        const bx = w * (0.03 + i * (0.94 / 14.0));
+        ctx.beginPath();
+        ctx.moveTo(bx, by - 6);
+        ctx.lineTo(bx, by + 5);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#8fa196";
+      ctx.font = "bold 10px Inter, sans-serif";
+      ctx.fillText("PERIMETER FENCE", 0.03 * w, by - 8);
+
+      // Capture corridor
+      const dx = 0.025 * w, dy = 0.71 * h, dw = 0.95 * w, dh = 0.22 * h;
+      ctx.fillStyle = "#152019";
+      ctx.strokeStyle = "#26382d";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.roundRect(dx, dy, dw, dh, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#388bfd";
+      ctx.font = "bold 10px Inter, sans-serif";
+      ctx.fillText("CAPTURE CORRIDOR", dx + 12, dy + 18);
+
+      // Dashed travel line
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = "#385444";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.05, h * 0.79);
+      ctx.lineTo(w * 0.95, h * 0.79);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Auto Train GPS Path
+      if (state.autoPath.length > 0) {
+        const n = state.autoPath.length;
+        const pts = state.autoPath.map((wp, idx) => {
+          const frac = n > 1 ? idx / (n - 1) : 0.5;
+          return { x: w * (0.08 + 0.84 * frac), y: h * 0.865, wp };
+        });
+        if (pts.length >= 2) {
+          ctx.strokeStyle = "#388bfd";
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.moveTo(pts[0].x, pts[0].y);
+          pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+          ctx.stroke();
+        }
+        pts.forEach((p, idx) => {
+          const isLast = idx === pts.length - 1;
+          ctx.fillStyle = isLast ? "#79c0ff" : "#388bfd";
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, isLast ? 5.5 : 3.8, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        const last = state.autoPath[state.autoPath.length - 1];
+        ctx.fillStyle = "#79c0ff";
+        ctx.textAlign = "right";
+        ctx.fillText(
+          `AUTO TRAIN GPS PATH · ${n} cycles · Latest: ${last.gps || ""} (${(last.direction || "").toUpperCase()})`,
+          dx + dw - 14,
+          dy + 18
+        );
+        ctx.textAlign = "left";
+      }
+
+      // Pins
+      MAP_PINS.forEach(pin => {
+        const cx = pin.x * w, cy = pin.y * h;
+        const col = pin.bad ? "#f85149" : "#3fb950";
+
+        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = pin.bad ? "rgba(248,81,73,0.45)" : "rgba(63,185,80,0.45)";
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx - 22, 0.52 * h);
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + 22, 0.52 * h);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = pin.bad ? "rgba(248,81,73,0.22)" : "rgba(63,185,80,0.22)";
+        ctx.beginPath();
+        ctx.arc(cx, cy, pin.r + 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = col;
+        ctx.strokeStyle = "#0e1511";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, pin.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      // Selected pin popup
+      const sel = MAP_PINS.find(p => p.id === state.selectedMapPin);
+      if (sel) {
+        const pw = 240, ph = 66;
+        const cx = sel.x * w, cy = sel.y * h;
+        const px = Math.min(Math.max(cx - pw * 0.6, 8), w - pw - 8);
+        const py = Math.max(8, cy - sel.r - 12 - ph);
+        sel._popup = { x: px, y: py, w: pw, h: ph };
+
+        ctx.fillStyle = "#131916";
+        ctx.strokeStyle = "#2d4236";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.roundRect(px, py, pw, ph, 11);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#f3f6f4";
+        ctx.font = "bold 11px Inter, sans-serif";
+        ctx.fillText(`${sel.id} · ${sel.when}`, px + 12, py + 20);
+
+        ctx.fillStyle = "#8fa196";
+        ctx.font = "10px Inter, sans-serif";
+        ctx.fillText(sel.detail, px + 12, py + 36);
+
+        ctx.fillStyle = sel.bad ? "#f85149" : "#3fb950";
+        ctx.font = "bold 10px Inter, sans-serif";
+        ctx.fillText(`${sel.bad ? "Needs inspection" : "Healthy"} · open record →`, px + 12, py + 52);
+      }
+    }
+
+    function setupMapInteraction() {
+      const canvas = document.getElementById("fieldMapCanvas");
+      canvas.addEventListener("click", e => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        const sel = MAP_PINS.find(p => p.id === state.selectedMapPin);
+        if (sel && sel._popup) {
+          const b = sel._popup;
+          if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+            switchTab("records");
+            setTimeout(() => expandRecordById(sel.id), 150);
+            return;
+          }
+        }
+
+        for (const pin of MAP_PINS) {
+          const cx = pin.x * rect.width;
+          const cy = pin.y * rect.height;
+          if (Math.hypot(mx - cx, my - cy) <= pin.r + 8) {
+            state.selectedMapPin = pin.id;
+            drawFieldMap();
+            return;
+          }
+        }
+      });
+    }
+
+    /* RECORDS */
+    async function loadRecords() {
+      const month = document.getElementById("recMonthFilter").value;
+      const plot = document.getElementById("recPlotFilter").value;
+      const variant = document.getElementById("recVariantFilter").value;
+      const status = document.getElementById("recStatusFilter").value;
+
+      const qs = new URLSearchParams({ month, plot, variant, status });
+      const res = await fetch("/api/records?" + qs.toString());
+      const data = await res.json();
+
+      populateFilter("recMonthFilter", data.filters.months, "All Months");
+      populateFilter("recPlotFilter", data.filters.plots, "All Plots");
+      populateFilter("recVariantFilter", data.filters.variants, "All Variants");
+      populateFilter("recStatusFilter", data.filters.statuses, "All Statuses");
+
+      const container = document.getElementById("recordsList");
+      container.innerHTML = "";
+      if (!data.records.length) {
+        container.innerHTML = `<div style="text-align:center; padding:28px; color:var(--muted);">No records match the current filters.</div>`;
+        return;
+      }
+
+      data.records.forEach(r => {
+        const item = document.createElement("div");
+        item.className = "rec-item";
+        item.dataset.id = r.id;
+        const isHealthy = r.status === "Healthy";
+        const chipClass = isHealthy ? "green" : "red";
+        const chipText = isHealthy ? "Healthy" : "Inspect";
+        const labStr = r.lab_l != null ? `${r.lab_l.toFixed(1)} / ${r.lab_a.toFixed(1)} / ${r.lab_b.toFixed(1)}` : "--";
+
+        item.innerHTML = `
+          <div class="rec-summary" onclick="this.parentElement.classList.toggle('expanded')">
+            <div style="font-weight:700;">${r.id}</div>
+            <div style="color:var(--muted);">${r.captured_short}</div>
+            <div>${r.plot}</div>
+            <div>${r.avg_height.toFixed(1)} cm</div>
+            <div style="font-weight:700;">${Math.round(r.avg_hue)}</div>
+            <div><span class="chip ${chipClass}">${chipText}</span></div>
+          </div>
+          <div class="rec-detail">
+            <img class="rec-thumb" src="/api/records/${encodeURIComponent(r.id)}/image" alt="${r.id}" onerror="this.style.display='none'" />
+            <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+              <div class="kv-row"><span class="kv-label">Captured</span><span class="kv-val">${r.captured_full}</span></div>
+              <div class="kv-row"><span class="kv-label">Plot</span><span class="kv-val">${r.plot}</span></div>
+              <div class="kv-row"><span class="kv-label">Variant</span><span class="kv-val">${r.variant}</span></div>
+              <div class="kv-row"><span class="kv-label">GPS</span><span class="kv-val" style="color:var(--good);">${r.gps || "No fix"}</span></div>
+            </div>
+            <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+              <div class="kv-row"><span class="kv-label">Median hue</span><span class="kv-val">${r.avg_hue.toFixed(1)} · ${r.leaf_report}</span></div>
+              <div class="kv-row"><span class="kv-label">CIELAB (L*/a*/b*)</span><span class="kv-val">${labStr}</span></div>
+              <div class="kv-row"><span class="kv-label">Avg height</span><span class="kv-val">${r.avg_height.toFixed(1)} cm · ${r.height_report}</span></div>
+              <div class="kv-row"><span class="kv-label">Status</span><span class="kv-val" style="color:${isHealthy ? 'var(--good)' : 'var(--red-text)'};">${r.status}</span></div>
+            </div>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function populateFilter(selectId, items, allLabel) {
+      const sel = document.getElementById(selectId);
+      const current = sel.value || "All";
+      sel.innerHTML = `<option value="All">${allLabel}</option>`;
+      (items || []).forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v;
+        opt.textContent = v;
+        if (v === current) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    function expandRecordById(recId) {
+      document.querySelectorAll(".rec-item").forEach(el => {
+        if (el.dataset.id === recId) {
+          el.classList.add("expanded");
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+    }
+
+    /* VALIDATION */
+    async function loadValidation() {
+      const res = await fetch("/api/validation");
+      const data = await res.json();
+      const m = data.metrics;
+
+      const chip = document.getElementById("valSummaryChip");
+      chip.textContent = `${m.n} paired samples`;
+      chip.className = "chip " + (m.n > 0 ? "green" : "gray");
+
+      document.getElementById("valHeightMae").textContent = m.height_mae != null ? `${m.height_mae.toFixed(2)} cm` : "--";
+      document.getElementById("valHeightRmse").textContent = m.height_rmse != null ? `${m.height_rmse.toFixed(2)} cm` : "--";
+      document.getElementById("valHueMae").textContent = m.hue_mae != null ? `${m.hue_mae.toFixed(2)}` : "--";
+      document.getElementById("valHueRmse").textContent = m.hue_rmse != null ? `${m.hue_rmse.toFixed(2)}` : "--";
+
+      const tbody = document.getElementById("valTableBody");
+      tbody.innerHTML = "";
+      if (!data.rows.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:24px;">No validation pairs yet. Add a manual reading to begin testing.</td></tr>`;
+        return;
+      }
+
+      data.rows.forEach(r => {
+        const tr = document.createElement("tr");
+        const hErrCol = r.height_error > 2.0 ? "var(--red-text)" : "var(--text)";
+        const hueErrCol = r.hue_error > 5.0 ? "var(--red-text)" : "var(--text)";
+        const stCol = r.status === "Test - Healthy" ? "var(--good)" : "var(--red-text)";
+        tr.innerHTML = `
+          <td style="font-weight:700;">${r.record_id}</td>
+          <td>${r.cv_height.toFixed(1)} cm</td>
+          <td>${r.manual_height.toFixed(1)} cm</td>
+          <td style="font-weight:700; color:${hErrCol};">${r.height_error.toFixed(1)}</td>
+          <td>${r.cv_hue.toFixed(1)}</td>
+          <td>${r.manual_hue.toFixed(1)}</td>
+          <td style="font-weight:700; color:${hueErrCol};">${r.hue_error.toFixed(1)}</td>
+          <td style="font-weight:700; color:${stCol};">${r.status}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function openValidationModal() {
+      const res = await fetch("/api/records");
+      const data = await res.json();
+      const sel = document.getElementById("modalRecordSelect");
+      sel.innerHTML = "";
+      data.records.forEach(r => {
+        const opt = document.createElement("option");
+        opt.value = r.id;
+        opt.textContent = `${r.id} · ${r.plot} · median hue ${r.avg_hue.toFixed(1)}`;
+        sel.appendChild(opt);
+      });
+      document.getElementById("valModal").classList.add("show");
+    }
+
+    function closeValidationModal() {
+      document.getElementById("valModal").classList.remove("show");
+    }
+
+    async function submitValidationReading() {
+      const payload = {
+        record_id: document.getElementById("modalRecordSelect").value,
+        manual_height: parseFloat(document.getElementById("modalManualHeight").value),
+        manual_hue: parseFloat(document.getElementById("modalManualHue").value),
+        notes: document.getElementById("modalNotes").value
+      };
+      const res = await fetch("/api/validation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+      closeValidationModal();
+      loadValidation();
+    }
+
+    /* STANDARDS */
+    function applyStandardsToUI(std) {
+      state.standards = std;
+      state.autoIntervalS = std.auto_drive_s || 5;
+      document.getElementById("stdHueLo").value = std.hue[0];
+      document.getElementById("stdHueHi").value = std.hue[1];
+      document.getElementById("stdHeightLo").value = std.height[0];
+      document.getElementById("stdHeightHi").value = std.height[1];
+      document.getElementById("stdGpsN").value = std.gps_n;
+      document.getElementById("stdTilt").value = std.tilt;
+      document.getElementById("stdAutoS").value = std.auto_drive_s;
+      if (document.getElementById("stdSecPerMeter") && std.sec_per_meter !== undefined) {
+        document.getElementById("stdSecPerMeter").value = std.sec_per_meter;
+        secPerMeter = Number(std.sec_per_meter) || 3.0;
+      }
+      drawHueBar();
+    }
+
+    function stepInput(id, delta) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const isFloat = id === "stdSecPerMeter";
+      const min = isFloat ? parseFloat(el.min) : parseInt(el.min, 10);
+      const max = isFloat ? parseFloat(el.max) : parseInt(el.max, 10);
+      const cur = isFloat ? (parseFloat(el.value) || 0.0) : (parseInt(el.value, 10) || 0);
+      const val = Math.min(max, Math.max(min, cur + delta));
+      el.value = isFloat ? val.toFixed(1) : val;
+      updateStandardsPreview();
+    }
+
+    function updateStandardsPreview() {
+      drawHueBar();
+      saveStandards();
+    }
+
+    function drawHueBar() {
+      const canvas = document.getElementById("hueBarCanvas");
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width || 400;
+      const h = 46;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+
+      const minH = 30, maxH = 85;
+      const lo = Math.min(parseInt(document.getElementById("stdHueLo").value, 10) || 48, parseInt(document.getElementById("stdHueHi").value, 10) || 75);
+      const hi = Math.max(parseInt(document.getElementById("stdHueLo").value, 10) || 48, parseInt(document.getElementById("stdHueHi").value, 10) || 75);
+
+      const pad = 18;
+      const usable = Math.max(10, w - 2 * pad);
+      const xOf = v => pad + Math.max(0, Math.min(1, (v - minH) / (maxH - minH))) * usable;
+
+      const yEnd = Math.max(minH, Math.min(lo - 6, maxH));
+      const lgEnd = Math.max(yEnd, Math.min(lo, maxH));
+      const hgEnd = Math.max(lgEnd, Math.min(hi, maxH));
+
+      const segs = [
+        [minH, yEnd, "#e3b341"],
+        [yEnd, lgEnd, "#85c846"],
+        [lgEnd, hgEnd, "#2ea043"],
+        [hgEnd, maxH, "#165c26"]
+      ];
+      segs.forEach(([a, b, col]) => {
+        if (b > a) {
+          ctx.fillStyle = col;
+          ctx.fillRect(xOf(a), 6, xOf(b) - xOf(a) + 0.5, 14);
+        }
+      });
+
+      [lo, hi].forEach(v => {
+        const x = xOf(v);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(x - 2, 4, 4, 18);
+        ctx.fillStyle = "#f3f6f4";
+        ctx.font = "bold 11px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(String(v), x, 36);
+      });
+    }
+
+    async function saveStandards() {
+      const payload = {
+        hue_lo: parseInt(document.getElementById("stdHueLo").value, 10),
+        hue_hi: parseInt(document.getElementById("stdHueHi").value, 10),
+        height_lo: parseInt(document.getElementById("stdHeightLo").value, 10),
+        height_hi: parseInt(document.getElementById("stdHeightHi").value, 10),
+        gps_n: parseInt(document.getElementById("stdGpsN").value, 10),
+        tilt: parseInt(document.getElementById("stdTilt").value, 10),
+        auto_drive_s: parseInt(document.getElementById("stdAutoS").value, 10),
+        sec_per_meter: parseFloat(document.getElementById("stdSecPerMeter")?.value || 3.0)
+      };
+      const res = await fetch("/api/standards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const std = await res.json();
+      state.standards = std;
+      state.autoIntervalS = std.auto_drive_s;
+      if (std.sec_per_meter !== undefined) {
+        secPerMeter = Number(std.sec_per_meter) || 3.0;
+        renderSteps(currentSteps);
+      }
+      const btn = document.getElementById("saveStdBtn");
+      btn.textContent = "Saved ✓";
+      setTimeout(() => { btn.textContent = "Save Standards"; }, 1200);
+    }
+
+    function resetStandardsDefaults() {
+      document.getElementById("stdHueLo").value = 48;
+      document.getElementById("stdHueHi").value = 75;
+      document.getElementById("stdHeightLo").value = 98;
+      document.getElementById("stdHeightHi").value = 101;
+      document.getElementById("stdGpsN").value = 5;
+      document.getElementById("stdTilt").value = 15;
+      document.getElementById("stdAutoS").value = 5;
+      if (document.getElementById("stdSecPerMeter")) {
+        document.getElementById("stdSecPerMeter").value = 3.0;
+        secPerMeter = 3.0;
+      }
+      saveStandards();
+      drawHueBar();
+    }
+
+    function setupKeyboardShortcuts() {
+      const keyMap = {
+        KeyW: "forward", ArrowUp: "forward",
+        KeyS: "backward", ArrowDown: "backward",
+        KeyA: "left", ArrowLeft: "left",
+        KeyD: "right", ArrowRight: "right",
+        Space: "stop"
+      };
+      window.addEventListener("keydown", e => {
+        if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+        if (state.activeTab !== "control") return;
+        if (e.code === "KeyT" && !e.repeat) {
+          toggleAutoDrive();
+          return;
+        }
+        if (e.code === "KeyC" && !e.repeat) {
+          onCaptureEvaluateClick();
+          return;
+        }
+        const cmd = keyMap[e.code];
+        if (cmd && !e.repeat) {
+          e.preventDefault();
+          sendDrive(cmd);
+        }
+      });
+      window.addEventListener("keyup", e => {
+        if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+        if (state.activeTab !== "control") return;
+        const cmd = keyMap[e.code];
+        if (cmd && cmd !== "stop") {
+          e.preventDefault();
+          releaseDrive();
+        }
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", initApp);
+  </script>
+</body>
+</html>
+

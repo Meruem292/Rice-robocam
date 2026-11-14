@@ -1,0 +1,189 @@
+// ==========================================
+// PIN DEFINITIONS (MATCHING YOUR SCHEMATIC)
+// ==========================================
+
+// Left Motor Driver (BTS7960)
+const int L_RPWM_PIN = 32;
+const int L_LPWM_PIN = 33;
+const int L_R_EN_PIN = 25;
+const int L_L_EN_PIN = 26;
+
+// Right Motor Driver (BTS7960)
+const int R_RPWM_PIN = 18;
+const int R_LPWM_PIN = 19;
+const int R_R_EN_PIN = 27;
+const int R_L_EN_PIN = 14;
+
+// ==========================================
+// PWM & MOTOR SETTINGS
+// ==========================================
+const int PWM_FREQ = 20000;    // 20 kHz (silent operation for 24V MY1016Z2 motors)
+const int PWM_RESOLUTION = 8;  // 8-bit resolution (0 - 255)
+
+int motorSpeed = 120;          // Safe default speed (0 - 255)
+char currentAction = 'S';      // Track current movement for live speed adjustments
+
+void setup() {
+  Serial.begin(115200);
+
+  // Configure Left Enable Pins
+  pinMode(L_R_EN_PIN, OUTPUT);
+  pinMode(L_L_EN_PIN, OUTPUT);
+  digitalWrite(L_R_EN_PIN, HIGH);
+  digitalWrite(L_L_EN_PIN, HIGH);
+
+  // Configure Right Enable Pins
+  pinMode(R_R_EN_PIN, OUTPUT);
+  pinMode(R_L_EN_PIN, OUTPUT);
+  digitalWrite(R_R_EN_PIN, HIGH);
+  digitalWrite(R_L_EN_PIN, HIGH);
+
+  // Attach PWM Pins (ESP32 Arduino Core v3.0+ API)
+  ledcAttach(L_RPWM_PIN, PWM_FREQ, PWM_RESOLUTION);
+  ledcAttach(L_LPWM_PIN, PWM_FREQ, PWM_RESOLUTION);
+  ledcAttach(R_RPWM_PIN, PWM_FREQ, PWM_RESOLUTION);
+  ledcAttach(R_LPWM_PIN, PWM_FREQ, PWM_RESOLUTION);
+
+  // Ensure both motors start completely stopped
+  stopAll();
+
+  printMenu();
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+    char cmd = toupper(Serial.read());
+
+    if (cmd == '\n' || cmd == '\r') return;
+
+    switch (cmd) {
+      case 'W': // Both Forward
+        currentAction = 'W';
+        setLeftMotor(motorSpeed);
+        setRightMotor(motorSpeed);
+        Serial.printf("BOTH FORWARD | Speed: %d\n", motorSpeed);
+        break;
+
+      case 'S': // Both Reverse
+        currentAction = 'S';
+        setLeftMotor(-motorSpeed);
+        setRightMotor(-motorSpeed);
+        Serial.printf("BOTH REVERSE | Speed: %d\n", motorSpeed);
+        break;
+
+      case 'A': // Pivot Left (Left Reverse, Right Forward)
+        currentAction = 'A';
+        setLeftMotor(-motorSpeed);
+        setRightMotor(motorSpeed);
+        Serial.printf("PIVOT LEFT | Speed: %d\n", motorSpeed);
+        break;
+
+      case 'D': // Pivot Right (Left Forward, Right Reverse)
+        currentAction = 'D';
+        setLeftMotor(motorSpeed);
+        setRightMotor(-motorSpeed);
+        Serial.printf("PIVOT RIGHT | Speed: %d\n", motorSpeed);
+        break;
+
+      case '1': // Test Left Motor Only (Forward)
+        currentAction = '1';
+        setLeftMotor(motorSpeed);
+        setRightMotor(0);
+        Serial.printf("LEFT MOTOR ONLY (FWD) | Speed: %d\n", motorSpeed);
+        break;
+
+      case '2': // Test Right Motor Only (Forward)
+        currentAction = '2';
+        setLeftMotor(0);
+        setRightMotor(motorSpeed);
+        Serial.printf("RIGHT MOTOR ONLY (FWD) | Speed: %d\n", motorSpeed);
+        break;
+
+      case 'X': // Emergency / Instant Stop
+        currentAction = 'X';
+        stopAll();
+        Serial.println("STOPPED ALL MOTORS.");
+        break;
+
+      case '+': // Increase PWM Speed
+        motorSpeed = constrain(motorSpeed + 25, 0, 255);
+        refreshMovement();
+        Serial.printf("Speed increased to: %d\n", motorSpeed);
+        break;
+
+      case '-': // Decrease PWM Speed
+        motorSpeed = constrain(motorSpeed - 25, 0, 255);
+        refreshMovement();
+        Serial.printf("Speed decreased to: %d\n", motorSpeed);
+        break;
+
+      case '?':
+        printMenu();
+        break;
+
+      default:
+        Serial.println("Invalid command. Send '?' for command list.");
+        break;
+    }
+  }
+}
+
+// ==========================================
+// MOTOR DRIVER HELPER FUNCTIONS
+// ==========================================
+
+// Positive speed = Forward, Negative speed = Reverse, 0 = Stop
+void setLeftMotor(int speed) {
+  if (speed > 0) {
+    ledcWrite(L_LPWM_PIN, 0);
+    ledcWrite(L_RPWM_PIN, speed);
+  } else if (speed < 0) {
+    ledcWrite(L_RPWM_PIN, 0);
+    ledcWrite(L_LPWM_PIN, abs(speed));
+  } else {
+    ledcWrite(L_RPWM_PIN, 0);
+    ledcWrite(L_LPWM_PIN, 0);
+  }
+}
+
+void setRightMotor(int speed) {
+  if (speed > 0) {
+    ledcWrite(R_LPWM_PIN, 0);
+    ledcWrite(R_RPWM_PIN, speed);
+  } else if (speed < 0) {
+    ledcWrite(R_RPWM_PIN, 0);
+    ledcWrite(R_LPWM_PIN, abs(speed));
+  } else {
+    ledcWrite(R_RPWM_PIN, 0);
+    ledcWrite(R_LPWM_PIN, 0);
+  }
+}
+
+void stopAll() {
+  setLeftMotor(0);
+  setRightMotor(0);
+}
+
+void refreshMovement() {
+  if (currentAction == 'W') { setLeftMotor(motorSpeed); setRightMotor(motorSpeed); }
+  else if (currentAction == 'S') { setLeftMotor(-motorSpeed); setRightMotor(-motorSpeed); }
+  else if (currentAction == 'A') { setLeftMotor(-motorSpeed); setRightMotor(motorSpeed); }
+  else if (currentAction == 'D') { setLeftMotor(motorSpeed); setRightMotor(-motorSpeed); }
+  else if (currentAction == '1') { setLeftMotor(motorSpeed); setRightMotor(0); }
+  else if (currentAction == '2') { setLeftMotor(0); setRightMotor(motorSpeed); }
+}
+
+void printMenu() {
+  Serial.println("\n=== RICETRACK / ROBOCAM MOTOR TEST ===");
+  Serial.println("  W : Both Motors Forward");
+  Serial.println("  S : Both Motors Reverse");
+  Serial.println("  A : Pivot Left");
+  Serial.println("  D : Pivot Right");
+  Serial.println("  1 : Test Left Motor Only (Forward)");
+  Serial.println("  2 : Test Right Motor Only (Forward)");
+  Serial.println("  X : STOP ALL");
+  Serial.println("  + : Increase Speed (+25)");
+  Serial.println("  - : Decrease Speed (-25)");
+  Serial.println("  ? : Show Menu");
+  Serial.println("======================================\n");
+}
