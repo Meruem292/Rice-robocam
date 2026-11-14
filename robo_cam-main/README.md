@@ -10,7 +10,7 @@ Autonomous rice field health monitoring and rover control system powered by a **
 flowchart TB
     BAT["24V 12Ah E-Bike Battery (B+, B-)"]
     FUSE["40A DC Inline Blade Fuse"]
-    ESTOP["30A DC Master E-Stop Switch"]
+    SW["Master Power Switch / E-Stop<br/>(Heavy-duty Toggle, Key Switch, or XT60 Plug)"]
     PROT["Power Bus Buffer<br/>(Bulk Cap / Onboard Driver Caps · TVS Optional)"]
     BUCK["24V -> 5V 5A Buck Converter"]
     
@@ -29,8 +29,8 @@ flowchart TB
     MOT_R["Right MY1016Z2 24V DC Motor"]
 
     BAT -->|"B+ (12 AWG)"| FUSE
-    FUSE --> ESTOP
-    ESTOP --> PROT
+    FUSE --> SW
+    SW --> PROT
     PROT -->|"24V High Current (12 AWG)"| BTS_L
     PROT -->|"24V High Current (12 AWG)"| BTS_R
     PROT -->|"24V Input"| BUCK
