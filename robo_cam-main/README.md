@@ -1,6 +1,6 @@
 # RiceTrackCV — Raspberry Pi 4B + ESP32 Agricultural Rover
 
-Autonomous rice field health monitoring and rover control system powered by a **Raspberry Pi 4B** (High-Level Brain, Computer Vision & Web Server) and an **ESP32-WROOM-32** (Real-Time Motor PWM & Sensor Controller), equipped with a **USB Camera**, **NEO-6M GPS Module**, **MPU-6050 6-Axis IMU**, **Dual BTS7960 Motor Drivers**, **Dual MY1016Z2 24V DC Motors**, and a **24V 12Ah Ebike Battery** with a **24V → 5V Buck Converter**.
+Autonomous rice field health monitoring and rover control system powered by a **Raspberry Pi 4B** (High-Level Brain, Computer Vision & Web Server) and an **ESP32-WROOM-32** (Real-Time Motor PWM & Sensor Controller), equipped with a **Raspberry Pi Camera Module v2** (15-Pin CSI Ribbon), **Direct Hardware UART Serial Bridge**, **NEO-6M GPS Module**, **MPU-6050 6-Axis IMU**, **Dual BTS7960 Motor Drivers**, **Dual MY1016Z2 24V DC Motors**, and a **24V 12Ah Ebike Battery** with a **24V → 5V Buck Converter**.
 
 ---
 
@@ -14,8 +14,8 @@ flowchart TB
     PROT["Protection Cluster (2200µF 35V Cap + SMBJ28A TVS)"]
     BUCK["24V -> 5V 5A Buck Converter"]
     
-    RPI["Raspberry Pi 4B (Brain)<br/>• FastAPI Web Server<br/>• OpenCV ExG & IRRI LCC Analysis<br/>• SQLite Database (ricetrack.db)<br/>• In-Field Wi-Fi Hotspot"]
-    CAM["USB Camera (OpenCV 1280x720)"]
+    RPI["Raspberry Pi 4B (Brain)<br/>• FastAPI Web Server<br/>• OpenCV ExG & IRRI LCC Analysis<br/>• Picamera2 (Pi Camera v2 CSI)<br/>• Hardware UART (/dev/serial0)<br/>• SQLite Database (ricetrack.db)<br/>• In-Field Wi-Fi Hotspot"]
+    CAM["Raspberry Pi Camera Module v2<br/>(15-Pin CSI Ribbon @ 1280x720)"]
     
     ESP["ESP32-WROOM-32 DevKit V1<br/>• 1 kHz Hardware PWM (LEDC)<br/>• 20 Hz IMU Complementary Filter<br/>• GPS NMEA UART Parser<br/>• Safety Heartbeat Watchdog"]
     
@@ -33,9 +33,9 @@ flowchart TB
     PROT -->|"24V High Current (12 AWG)"| BTS_R
     PROT -->|"24V Input"| BUCK
 
-    BUCK -->|"Regulated 5V 5A (USB-C / GPIO)"| RPI
-    RPI <-->|"USB Data Cable (/dev/ttyUSB0)"| ESP
-    CAM <-->|"USB Port"| RPI
+    BUCK -->|"Regulated 5.1V 5A (USB-C / Pins 2,4 & 6)"| RPI
+    RPI <-->|"Hardware UART (GPIO 14 TX / GPIO 15 RX @ 115200)"| ESP
+    CAM <-->|"15-pin CSI-2 Ribbon Cable"| RPI
 
     ESP -->|"GPIO 16/17 (UART2)"| GPS
     ESP <-->|"GPIO 21/22 (I2C)"| IMU
@@ -58,17 +58,32 @@ flowchart TB
 
 ### A. Power & Ground Distribution (Star Grounding)
 * **Main Traction Rail:** Battery (+) $\to$ 40A Fuse $\to$ 30A E-Stop Switch $\to$ Parallel branch to BTS7960 `B+` (Left & Right) and Buck Converter `In+`.
-* **Buck Converter (24V $\to$ 5V 5A):** Supplies 5.1V clean DC power to Raspberry Pi 4B (via USB-C or GPIO Pins 2/4 & 6).
-* **ESP32 Power:** Powered directly from Raspberry Pi 4B via USB Cable (or from 5V buck converter into `VIN`).
-* **Common Ground (Star Ground):** The Battery negative (`B-`), Buck Converter `In-` & `Out-`, and BTS7960 `B-` must all terminate at a heavy-gauge central star-ground terminal block to prevent motor return currents from flowing through the Raspberry Pi logic.
+* **Buck Converter (24V $\to$ 5.1V 5A):** Supplies clean DC power to Raspberry Pi 4B (via USB-C or GPIO Header Pin 2/4 and GND Pin 6).
+* **ESP32 Power:** Powered directly from Raspberry Pi 4B 5V Pin (Pin 2/4 $\to$ ESP32 `VIN` pin) or from the 5V buck converter.
+* **Common Ground (Star Ground):** The Battery negative (`B-`), Buck Converter `In-` & `Out-`, and BTS7960 `B-` must all terminate at a heavy-gauge central star-ground terminal block to prevent motor return currents from flowing through the digital logic.
 
-### B. Module Pin-to-Pin Connections
+### B. Direct Hardware UART Interconnect (Raspberry Pi 4B $\leftrightarrow$ ESP32)
+*Both Raspberry Pi 4B and ESP32 GPIO pins operate natively at **3.3V logic level**, so **no voltage divider or level shifter is needed**.*
+
+| Raspberry Pi 4B Pin | Pi Signal | ESP32 Pin | ESP32 Signal | Function / Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **Pin 8 (GPIO 14)** | `TXD0` | **Pin `RX0` (GPIO 3)** | `RX0` | Pi transmits JSON commands to ESP32 |
+| **Pin 10 (GPIO 15)**| `RXD0` | **Pin `TX0` (GPIO 1)** | `TX0` | Pi receives telemetry/IMU/GPS from ESP32 |
+| **Pin 6** | `GND` | **Pin `GND`** | `GND` | Common reference logic ground |
+| **Pin 2 or 4** (Optional)| `5V` | **Pin `VIN`** | `5V In` | ESP32 power (if not powered externally) |
+
+> [!IMPORTANT]
+> **Disable Linux Serial Console:** Raspberry Pi OS binds a serial console to `/dev/serial0` by default. You must disable the login shell and keep the hardware UART enabled using `sudo raspi-config` (handled automatically by `setup_rpi.sh`).
+
+### C. Raspberry Pi Camera Module v2 (CSI Ribbon)
+* **Interface:** Connects to the Pi 4B 15-pin CSI connector located between the micro-HDMI ports and the 3.5mm audio jack.
+* **Orientation:** Pull up the plastic clip gently. Insert the ribbon with the **silver contact pins facing towards the micro-HDMI ports** (blue tape faces the USB/Ethernet ports). Press the clip back down firmly.
+* **Software:** Uses `Picamera2` (`python3-picamera2`) for zero-copy BGR streaming at 1280×720 @ 25 FPS with hardware AE/AWB.
+
+### D. Sensor & Motor Driver Connections
 
 | Module / Component | Module Pin | Connected To | Logic / Function | Wire Gauge |
 | :--- | :--- | :--- | :--- | :--- |
-| **Raspberry Pi 4B** | USB Port 1 | **ESP32 USB Port** | Serial Bridge @ 115200 baud (`/dev/ttyUSB0`) | Standard USB |
-| **Raspberry Pi 4B** | USB Port 2 | **USB Camera** | OpenCV VideoCapture (`/dev/video0`) | Standard USB |
-| **Raspberry Pi 4B** | USB-C Power | **Buck Converter 5V Out** | 5.1V 3A–5A Regulated Power | 18 AWG |
 | **NEO-6M GPS Module** | `TX` | ESP32 `GPIO 16` (RX2) | NMEA 9600 baud GPS Telemetry | 24–26 AWG |
 | **NEO-6M GPS Module** | `RX` | ESP32 `GPIO 17` (TX2) | GPS Configuration | 24–26 AWG |
 | **NEO-6M GPS Module** | `VCC` / `GND` | ESP32 `3.3V` / `GND` | 3.3V Sensor Power Rail | 24–26 AWG |

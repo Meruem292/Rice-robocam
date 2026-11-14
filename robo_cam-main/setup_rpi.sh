@@ -16,21 +16,30 @@ echo "🌾 RiceTrack — Raspberry Pi 4B + ESP32 Environment Setup"
 echo "========================================================"
 
 # 1. Update package lists and install required system packages
-echo "[1/5] Installing required Linux system libraries..."
+echo "[1/5] Installing required Linux system libraries & camera packages..."
 sudo apt-get update
 sudo apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
     python3-dev \
+    python3-picamera2 \
+    python3-libcamera \
+    libcamera-tools \
     libgl1 \
     libglib2.0-0 \
     v4l-utils \
     network-manager
 
-# 2. Grant serial port (/dev/ttyUSB0) and camera (/dev/video*) permissions to the current user
-echo "[2/5] Configuring user hardware permissions (dialout, video, tty)..."
-sudo usermod -a -G dialout,video,tty "$USER"
+# 2. Grant serial port (/dev/serial0, /dev/ttyUSB0) and camera permissions to the current user
+echo "[2/5] Configuring user hardware permissions and Raspberry Pi UART / Camera..."
+sudo usermod -a -G dialout,video,tty,gpio "$USER"
+
+# Configure hardware UART on GPIO 14/15 and disable Linux login console over serial
+echo "      - Enabling Primary Hardware UART on GPIO 14 (TX) / 15 (RX)..."
+sudo raspi-config nonint do_serial_cons 1 || true # 1 = Disable serial login console
+sudo raspi-config nonint do_serial_hw 0 || true   # 0 = Enable hardware serial port (/dev/serial0)
+sudo raspi-config nonint do_camera 0 || true      # 0 = Enable camera interface if legacy stack
 
 # 3. Create Python virtual environment if not already present
 if [ ! -d ".venv" ]; then

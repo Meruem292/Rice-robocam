@@ -72,6 +72,13 @@ import serial
 import serial.tools.list_ports
 from PySide6.QtCore import QObject, QTimer, Signal
 
+try:
+    from picamera2 import Picamera2
+    HAS_PICAMERA2 = True
+except Exception:
+    Picamera2 = None
+    HAS_PICAMERA2 = False
+
 
 # ==============================================================================
 # PIN & HARDWARE CONFIGURATION (ESP32-WROOM-32 DevKit V1)
@@ -113,7 +120,11 @@ class ESP32PinConfig:
 
     # Serial USB bridge configuration (ESP32 ↔ Host PC)
     bridge_baud: int = 115200
-    bridge_ports: tuple = ("COM3", "COM4", "COM5", "/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyACM0", "/dev/ttyACM1")
+    bridge_ports: tuple = (
+        "COM3", "COM4", "COM5",
+        "/dev/serial0", "/dev/ttyAMA0", "/dev/ttyS0",
+        "/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyACM0", "/dev/ttyACM1"
+    )
 
 
 PINS = ESP32PinConfig()
@@ -958,13 +969,13 @@ class ESP32BTS7960Motors(QObject):
 
 class ESP32Camera(QObject):
     """
-    USB Webcam camera provider for RiceTrack on the ESP32 platform.
-    The camera is a standard USB webcam connected to the host PC (not to the
-    ESP32). Captures frames via OpenCV VideoCapture in a background thread
-    at ~25 FPS for smooth, non-blocking live camera monitoring.
+    Live camera provider for RiceTrack supporting:
+      1. Raspberry Pi Camera Module v2 (CSI ribbon via Picamera2 / libcamera)
+      2. Standard USB Webcams via OpenCV VideoCapture (V4L2 / DirectShow)
 
-    This class does NOT use Picamera2 or
-    CSI camera interfaces — OpenCV VideoCapture only.
+    Automatically selects Picamera2 on Raspberry Pi when a CSI camera is attached,
+    and falls back to OpenCV VideoCapture for USB webcams or desktop simulation.
+    Captures frames in a background thread at ~25 FPS for smooth monitoring.
     """
     frame_ready = Signal(object)      # BGR np.ndarray live frame
     camera_state = Signal(bool, str)  # (connected, description)
@@ -973,6 +984,8 @@ class ESP32Camera(QObject):
         super().__init__(parent)
         self._camera_index = camera_index
         self._cv_cap: Any = None
+        self._picam2: Any = None
+        self._is_picam2 = False
         self._connected = False
         self._paused = False
         self._running = False
@@ -1025,7 +1038,7 @@ class ESP32Camera(QObject):
         self._reopen_requested = True
 
     def _try_connect(self) -> bool:
-        """Attempt to open the USB webcam via OpenCV VideoCapture."""
+        """Attempt to open either Raspberry Pi Camera Module v2 via Picamera2 or a USB webcam via OpenCV."""
         if self._connected and not self._reopen_requested:
             return True
         self._reopen_requested = False
@@ -1033,7 +1046,36 @@ class ESP32Camera(QObject):
 
         idx = self._camera_index
 
-        # Try platform-optimal backends first
+        # 1. On Raspberry Pi with CSI port, try Picamera2 first (Raspberry Pi Camera Module v2)
+        if HAS_PICAMERA2 and idx == 0:
+            picam = None
+            try:
+                picam = Picamera2()
+                cfg = picam.create_video_configuration(main={"size": (1280, 720), "format": "BGR888"})
+                picam.configure(cfg)
+                picam.start()
+                time.sleep(0.1)  # Warm up sensor auto-exposure
+                frame = picam.capture_array()
+                if frame is not None and frame.size > 0:
+                    self._picam2 = picam
+                    self._is_picam2 = True
+                    with self._lock:
+                        self._last_frame_bgr = frame
+                    h, w = frame.shape[:2]
+                    self._set_state(True, f"Pi Camera v2 CSI ({w}×{h})")
+                    self.frame_ready.emit(frame)
+                    return True
+            except Exception:
+                if picam is not None:
+                    try:
+                        picam.stop()
+                        picam.close()
+                    except Exception:
+                        pass
+                self._picam2 = None
+                self._is_picam2 = False
+
+        # 2. Fall back to standard OpenCV VideoCapture (for USB Webcams or PC development)
         backends = [cv2.CAP_ANY]
         if os.name == "nt" and hasattr(cv2, "CAP_DSHOW"):
             backends = [cv2.CAP_DSHOW, cv2.CAP_ANY]
@@ -1066,7 +1108,16 @@ class ESP32Camera(QObject):
         return False
 
     def _release(self, emit_offline: bool = True):
-        """Release the OpenCV VideoCapture device."""
+        """Release the camera device (Picamera2 or OpenCV)."""
+        if self._is_picam2 and self._picam2 is not None:
+            try:
+                self._picam2.stop()
+                self._picam2.close()
+            except Exception:
+                pass
+            self._picam2 = None
+            self._is_picam2 = False
+
         if self._cv_cap is not None:
             try:
                 self._cv_cap.release()
@@ -1108,8 +1159,15 @@ class ESP32Camera(QObject):
             time.sleep(0.04)  # ~25 FPS live monitoring
 
     def _grab_frame(self) -> np.ndarray | None:
-        """Grab a single frame from the OpenCV VideoCapture device."""
-        if self._cv_cap is not None:
+        """Grab a single frame from Picamera2 or OpenCV VideoCapture."""
+        if self._is_picam2 and self._picam2 is not None:
+            try:
+                frame = self._picam2.capture_array()
+                if frame is not None and frame.size > 0:
+                    return frame
+            except Exception:
+                return None
+        elif self._cv_cap is not None:
             try:
                 ok, frame = self._cv_cap.read()
                 if ok and frame is not None and frame.size > 0:
