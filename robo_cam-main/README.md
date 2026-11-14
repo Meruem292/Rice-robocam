@@ -9,7 +9,7 @@ Autonomous rice field health monitoring and rover control system powered by a **
 ```mermaid
 flowchart TB
     BAT["24V 12Ah E-Bike Battery (B+, B-)"]
-    FUSE["40A DC Inline Blade Fuse"]
+    FUSE["35A–40A DC Inline Blade Fuse"]
     SW["Master Power Switch / E-Stop<br/>(Heavy-duty Toggle, Key Switch, or XT60 Plug)"]
     PROT["Power Bus Buffer<br/>(Bulk Cap / Onboard Driver Caps · TVS Optional)"]
     BUCK["24V -> 5V 5A Buck Converter"]
@@ -63,7 +63,7 @@ flowchart TB
 ## 2. Complete Pinout & Wiring Specification
 
 ### A. Power & Ground Distribution (Star Grounding)
-* **Main Traction Rail:** Battery (+) $\to$ 40A Fuse $\to$ 30A E-Stop Switch $\to$ Parallel branch to BTS7960 `B+` (Left & Right) and Buck Converter `In+`.
+* **Main Traction Rail:** Battery (+) $\to$ 35A/40A Blade Fuse $\to$ Master Switch / XT60 Disconnect $\to$ Parallel branch to BTS7960 `B+` (Left & Right) and Buck Converter `In+`.
 * **Buck Converter (24V $\to$ 5.1V 5A):** Supplies clean DC power to Raspberry Pi 4B (via USB-C or GPIO Header Pin 2/4 and GND Pin 6).
 * **ESP32 Power:** Powered directly from Raspberry Pi 4B 5V Pin (Pin 2/4 $\to$ ESP32 `VIN` pin) or from the 5V buck converter.
 * **Common Ground (Star Ground):** The Battery negative (`B-`), Buck Converter `In-` & `Out-`, and BTS7960 `B-` must all terminate at a heavy-gauge central star-ground terminal block to prevent motor return currents from flowing through the digital logic.
@@ -93,7 +93,7 @@ The PC817 optocoupler module provides **5000V RMS galvanic isolation** between t
 > [!CAUTION]
 > **Signal Isolation vs. Power Protection:**
 > * The **PC817 module is for low-current signal isolation only** (rated for ~50mA per channel).
-> * **It does NOT replace the 40A blade fuse, 30A E-stop switch, or 2200µF bulk capacitor** on the main 24V battery traction rail! You must keep the 40A fuse and bulk capacitor on the 24V bus to protect the battery and the BTS7960 MOSFETs themselves from high-current shorts and inductive flyback.
+> * **It does NOT replace the 35A/40A blade fuse, master power switch, or bulk capacitors** on the main 24V battery traction rail! You must keep the blade fuse on the 24V bus to protect the battery and wiring from high-current shorts.
 
 #### PC817 Module Pin Connections:
 
