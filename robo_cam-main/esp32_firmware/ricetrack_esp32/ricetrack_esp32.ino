@@ -66,9 +66,14 @@ const uint32_t GPS_BAUD = 9600;
 const int PIN_LED = 2;
 
 // PWM Configuration
-const int PWM_FREQ = 1000;       // 1 kHz
+const int PWM_FREQ = 1000;       // 1 kHz (PC817 optocouplers easily support up to 3-5 kHz)
 const int PWM_RESOLUTION = 10;   // 10-bit (0 - 1023)
 const int PWM_MAX = 1023;
+
+// PC817 Optocoupler Board Inversion:
+// - Set to false (default): Direct wiring or non-inverting optocoupler boards (Input HIGH -> Output HIGH)
+// - Set to true: Inverting PC817 boards where phototransistor pulls output LOW when input is activated
+#define OPTOCOUPLER_INVERTED false
 
 // PWM Channels (for ESP32 core v2.x)
 const int CH_LEFT_RPWM  = 0;
@@ -133,12 +138,16 @@ int test_speed = 120; // 0 - 255, same default as the standalone test sketch
 // MOTOR CONTROL
 // ------------------------------------------------------------------------------
 void setPWM(int pin, int channel, int duty) {
+    int out_duty = duty;
+#if OPTOCOUPLER_INVERTED
+    out_duty = PWM_MAX - duty;
+#endif
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR >= 3)
     // ESP32 Arduino Core 3.x
-    ledcWrite(pin, duty);
+    ledcWrite(pin, out_duty);
 #else
     // ESP32 Arduino Core 2.x
-    ledcWrite(channel, duty);
+    ledcWrite(channel, out_duty);
 #endif
 }
 
