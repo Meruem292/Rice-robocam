@@ -2,6 +2,7 @@
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
 pydantic>=2.0.0
+python-multipart>=0.0.7
 opencv-python>=4.8.0; sys_platform == 'win32'
 opencv-python-headless>=4.8.0; sys_platform == 'linux'
 numpy>=1.24.0

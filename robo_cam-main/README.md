@@ -1,6 +1,6 @@
 # RiceTrackCV — Raspberry Pi 4B + ESP32 Agricultural Rover
 
-Autonomous rice field health monitoring and rover control system powered by a **Raspberry Pi 4B** (High-Level Brain, Computer Vision & Web Server) and an **ESP32-WROOM-32** (Real-Time Motor PWM & Sensor Controller), equipped with a **Raspberry Pi Camera Module v2** (15-Pin CSI Ribbon), **Direct Hardware UART Serial Bridge**, **PC817 Optocoupler Signal Isolation Module**, **NEO-6M GPS Module**, **MPU-6050 6-Axis IMU**, **Dual BTS7960 Motor Drivers**, **Dual MY1016Z2 24V DC Motors**, and a **24V 12Ah Ebike Battery** with a **24V → 5V Buck Converter**.
+Autonomous rice field health monitoring and rover control system powered by a **Raspberry Pi 4B** (High-Level Brain, Computer Vision & Web Server) and an **ESP32-WROOM-32** (Real-Time Motor PWM & Sensor Controller), equipped with a **Raspberry Pi Camera Module v2** (15-Pin CSI Ribbon), **Direct Hardware UART Serial Bridge**, **NEO-6M GPS Module**, **MPU-6050 6-Axis IMU**, **Dual BTS7960 Motor Drivers**, **Dual MY1016Z2 24V DC Motors**, and a **24V 12Ah Ebike Battery** with a **24V → 5V Buck Converter**.
 
 ---
 
@@ -19,12 +19,10 @@ flowchart TB
     
     ESP["ESP32-WROOM-32 DevKit V1<br/>• 1 kHz Hardware PWM (LEDC)<br/>• 20 Hz IMU Complementary Filter<br/>• GPS NMEA UART Parser<br/>• Safety Heartbeat Watchdog"]
     
-    OPTO["PC817 4-Channel Optocoupler Module<br/>(5000V Galvanic Signal Isolation)"]
-    
     GPS["NEO-6M GPS Module (UART2)"]
     IMU["MPU-6050 IMU Gyroscope (I2C)"]
-    BTS_L["Left BTS7960 Motor Driver"]
-    BTS_R["Right BTS7960 Motor Driver"]
+    BTS_L["Left BTS7960 Motor Driver<br/>(Onboard 74HC244 Logic Buffer)"]
+    BTS_R["Right BTS7960 Motor Driver<br/>(Onboard 74HC244 Logic Buffer)"]
     MOT_L["Left MY1016Z2 24V DC Motor"]
     MOT_R["Right MY1016Z2 24V DC Motor"]
 
@@ -45,14 +43,11 @@ flowchart TB
     ESP -->|"3.3V Logic & GND"| GPS
     ESP -->|"3.3V Logic & GND"| IMU
 
-    %% Optocoupled motor control
-    ESP -->|"GPIO 32, 33, 18, 19 (PWM)"| OPTO
-    ESP -->|"3.3V Logic & GND (Input Side)"| OPTO
-    OPTO -->|"Isolated PWM Outputs (OUT 1-4)"| BTS_L
-    OPTO -->|"Isolated PWM Outputs (OUT 1-4)"| BTS_R
-    BUCK -->|"5V Isolated Logic & Motor Star GND"| OPTO
-    BUCK -->|"5V Logic & Motor Star GND"| BTS_L
-    BUCK -->|"5V Logic & Motor Star GND"| BTS_R
+    %% Direct ESP32 to BTS7960 connections
+    ESP -->|"3.3V Logic & Logic GND"| BTS_L
+    ESP -->|"3.3V Logic & Logic GND"| BTS_R
+    ESP -->|"GPIO 25 (R_EN), 26 (L_EN), 32 (RPWM), 33 (LPWM)"| BTS_L
+    ESP -->|"GPIO 27 (R_EN), 14 (L_EN), 18 (RPWM), 19 (LPWM)"| BTS_R
 
     BTS_L -->|"M+ / M- (14 AWG)"| MOT_L
     BTS_R -->|"M+ / M- (14 AWG)"| MOT_R
@@ -86,36 +81,11 @@ flowchart TB
 * **Orientation:** Pull up the plastic clip gently. Insert the ribbon with the **silver contact pins facing towards the micro-HDMI ports** (blue tape faces the USB/Ethernet ports). Press the clip back down firmly.
 * **Software:** Uses `Picamera2` (`python3-picamera2`) for zero-copy BGR streaming at 1280×720 @ 25 FPS with hardware AE/AWB.
 
-### D. PC817 4-Channel Optocoupler Isolation Module (Motor PWM Signal Protection)
+### D. Drivetrain & Sensor Connections (Direct ESP32 to BTS7960)
 
-The PC817 optocoupler module provides **5000V RMS galvanic isolation** between the ESP32 low-voltage digital brain and the high-current BTS7960 motor drivers. This prevents motor inductive kicks, MOSFET failure surges, and ground-bounce from destroying the ESP32 or Raspberry Pi.
-
-> [!CAUTION]
-> **Signal Isolation vs. Power Protection:**
-> * The **PC817 module is for low-current signal isolation only** (rated for ~50mA per channel).
-> * **It does NOT replace the 35A/40A blade fuse, master power switch, or bulk capacitors** on the main 24V battery traction rail! You must keep the blade fuse on the 24V bus to protect the battery and wiring from high-current shorts.
-
-#### PC817 Module Pin Connections:
-
-| Module Section | Pin | Connected To | Description |
-| :--- | :--- | :--- | :--- |
-| **Input (ESP32 Side)** | `VCC` / `IN+` | ESP32 `3.3V` Pin | 3.3V logic reference |
-| **Input (ESP32 Side)** | `GND` / `IN-` | ESP32 `GND` Pin | ESP32 logic ground |
-| **Input (ESP32 Side)** | `IN1` | ESP32 `GPIO 32` | Left Motor RPWM (Forward) |
-| **Input (ESP32 Side)** | `IN2` | ESP32 `GPIO 33` | Left Motor LPWM (Reverse) |
-| **Input (ESP32 Side)** | `IN3` | ESP32 `GPIO 18` | Right Motor RPWM (Forward) |
-| **Input (ESP32 Side)** | `IN4` | ESP32 `GPIO 19` | Right Motor LPWM (Reverse) |
-| **Output (Driver Side)** | `VCC` / `HVCC` | 5V (from Buck or Driver logic) | Isolated output pull-up rail |
-| **Output (Driver Side)** | `GND` / `HGND` | Central Star Ground Terminal | Motor power reference ground |
-| **Output (Driver Side)** | `OUT1` | Left BTS7960 `RPWM` | Isolated Left Forward PWM |
-| **Output (Driver Side)** | `OUT2` | Left BTS7960 `LPWM` | Isolated Left Reverse PWM |
-| **Output (Driver Side)** | `OUT3` | Right BTS7960 `RPWM` | Isolated Right Forward PWM |
-| **Output (Driver Side)** | `OUT4` | Right BTS7960 `LPWM` | Isolated Right Reverse PWM |
-
-* **Driver Enable Pins (`R_EN` / `L_EN`):** Tie `R_EN` and `L_EN` on both BTS7960 drivers directly to the driver side `5V` (or 3.3V) rail. This keeps the drivers enabled, allowing the 4 isolated PWM lines to fully control direction, speed, and braking.
-* **Inverting Modules:** If your PC817 module inverts the logic (pulls output LOW when active), simply set `#define OPTOCOUPLER_INVERTED true` at the top of [`esp32_firmware/ricetrack_esp32/ricetrack_esp32.ino`](file:///esp32_firmware/ricetrack_esp32/ricetrack_esp32.ino).
-
-### E. Sensor & Drivetrain Connections
+> [!NOTE]
+> **Is It Safe Without PC817? YES!**
+> The BTS7960 (IBT-2) driver module already includes an onboard **74HC244 logic buffer IC** that protects and isolates the input pins before reaching the high-power half-bridge stages. Connecting the ESP32 directly to the BTS7960 logic pins is standard, simple, and completely safe as long as the **Star Ground** and **35A/40A Fuse** rules are observed.
 
 | Module / Component | Module Pin | Connected To | Logic / Function | Wire Gauge |
 | :--- | :--- | :--- | :--- | :--- |
@@ -125,16 +95,18 @@ The PC817 optocoupler module provides **5000V RMS galvanic isolation** between t
 | **MPU-6050 6-Axis IMU** | `SDA` | ESP32 `GPIO 21` | I2C Data (Addr `0x68`) | 24–26 AWG |
 | **MPU-6050 6-Axis IMU** | `SCL` | ESP32 `GPIO 22` | I2C Clock (Addr `0x68`) | 24–26 AWG |
 | **MPU-6050 6-Axis IMU** | `VCC` / `GND` | ESP32 `3.3V` / `GND` | 3.3V Sensor Power Rail | 24–26 AWG |
-| **Left BTS7960 Driver** | `R_EN` / `L_EN` | Tied to 5V (or ESP32 `GPIO 25/26`) | Driver Enable (Active HIGH) | 22–24 AWG |
-| **Left BTS7960 Driver** | `RPWM` / `LPWM` | PC817 `OUT1` / `OUT2` | Isolated 1 kHz PWM | 22–24 AWG |
-| **Left BTS7960 Driver** | `VCC` / `GND` | 5V Supply & Star Ground | Driver Logic & Ground | 22–24 AWG |
-| **Left BTS7960 Driver** | `B+` / `B-` | 24V Battery Bus (post-Estop) | High Current Traction Supply | 12–14 AWG |
+| **Left BTS7960 Driver** | `R_EN` / `L_EN` | ESP32 `GPIO 25` / `GPIO 26` (or tied to 3.3V) | Driver Enable (Active HIGH) | 22–24 AWG |
+| **Left BTS7960 Driver** | `RPWM` / `LPWM` | ESP32 `GPIO 32` / `GPIO 33` | LEDC Hardware PWM Ch 0/1 @ 1 kHz | 22–24 AWG |
+| **Left BTS7960 Driver** | `VCC` / `GND` | ESP32 `3.3V` / `GND` | Driver 3.3V Logic & Ground | 22–24 AWG |
+| **Left BTS7960 Driver** | `B+` / `B-` | 24V Battery Bus (post-Switch) | High Current Traction Supply | 12–14 AWG |
 | **Left BTS7960 Driver** | `M+` / `M-` | Left MY1016Z2 DC Motor | Left Drive Output | 14 AWG |
-| **Right BTS7960 Driver** | `R_EN` / `L_EN` | Tied to 5V (or ESP32 `GPIO 27/14`) | Driver Enable (Active HIGH) | 22–24 AWG |
-| **Right BTS7960 Driver** | `RPWM` / `LPWM` | PC817 `OUT3` / `OUT4` | Isolated 1 kHz PWM | 22–24 AWG |
-| **Right BTS7960 Driver** | `VCC` / `GND` | 5V Supply & Star Ground | Driver Logic & Ground | 22–24 AWG |
-| **Right BTS7960 Driver** | `B+` / `B-` | 24V Battery Bus (post-Estop) | High Current Traction Supply | 12–14 AWG |
+| **Right BTS7960 Driver** | `R_EN` / `L_EN` | ESP32 `GPIO 27` / `GPIO 14` (or tied to 3.3V) | Driver Enable (Active HIGH) | 22–24 AWG |
+| **Right BTS7960 Driver** | `RPWM` / `LPWM` | ESP32 `GPIO 18` / `GPIO 19` | LEDC Hardware PWM Ch 2/3 @ 1 kHz | 22–24 AWG |
+| **Right BTS7960 Driver** | `VCC` / `GND` | ESP32 `3.3V` / `GND` | Driver 3.3V Logic & Ground | 22–24 AWG |
+| **Right BTS7960 Driver** | `B+` / `B-` | 24V Battery Bus (post-Switch) | High Current Traction Supply | 12–14 AWG |
 | **Right BTS7960 Driver** | `M+` / `M-` | Right MY1016Z2 DC Motor | Right Drive Output | 14 AWG |
+
+*(Optional: If you still wish to insert an external PC817 4-channel optocoupler, simply place it between the ESP32 PWM pins and BTS7960 RPWM/LPWM inputs).*
 
 ---
 

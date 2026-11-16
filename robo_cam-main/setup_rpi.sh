@@ -23,6 +23,7 @@ sudo apt-get install -y \
     python3-pip \
     python3-venv \
     python3-dev \
+    python3-multipart \
     python3-picamera2 \
     python3-libcamera \
     libcamera-tools \

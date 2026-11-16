@@ -75,9 +75,11 @@ from PySide6.QtCore import QObject, QTimer, Signal
 try:
     from picamera2 import Picamera2
     HAS_PICAMERA2 = True
-except Exception:
+    _PICAM_IMPORT_ERR = None
+except Exception as _err:
     Picamera2 = None
     HAS_PICAMERA2 = False
+    _PICAM_IMPORT_ERR = str(_err)
 
 
 # ==============================================================================
@@ -1047,33 +1049,38 @@ class ESP32Camera(QObject):
         idx = self._camera_index
 
         # 1. On Raspberry Pi with CSI port, try Picamera2 first (Raspberry Pi Camera Module v2)
-        if HAS_PICAMERA2 and idx == 0:
-            picam = None
-            try:
-                picam = Picamera2()
-                cfg = picam.create_video_configuration(main={"size": (1280, 720), "format": "BGR888"})
-                picam.configure(cfg)
-                picam.start()
-                time.sleep(0.1)  # Warm up sensor auto-exposure
-                frame = picam.capture_array()
-                if frame is not None and frame.size > 0:
-                    self._picam2 = picam
-                    self._is_picam2 = True
-                    with self._lock:
-                        self._last_frame_bgr = frame
-                    h, w = frame.shape[:2]
-                    self._set_state(True, f"Pi Camera v2 CSI ({w}×{h})")
-                    self.frame_ready.emit(frame)
-                    return True
-            except Exception:
-                if picam is not None:
-                    try:
-                        picam.stop()
-                        picam.close()
-                    except Exception:
-                        pass
-                self._picam2 = None
-                self._is_picam2 = False
+        if idx == 0:
+            if HAS_PICAMERA2:
+                picam = None
+                try:
+                    picam = Picamera2()
+                    cfg = picam.create_video_configuration(main={"size": (1280, 720), "format": "BGR888"})
+                    picam.configure(cfg)
+                    picam.start()
+                    time.sleep(0.1)  # Warm up sensor auto-exposure
+                    frame = picam.capture_array()
+                    if frame is not None and frame.size > 0:
+                        self._picam2 = picam
+                        self._is_picam2 = True
+                        with self._lock:
+                            self._last_frame_bgr = frame
+                        h, w = frame.shape[:2]
+                        self._set_state(True, f"Pi Camera v2 CSI ({w}×{h})")
+                        self.frame_ready.emit(frame)
+                        return True
+                except Exception as e:
+                    print(f"[RiceTrack Camera] Picamera2 connection failed: {e}")
+                    if picam is not None:
+                        try:
+                            picam.stop()
+                            picam.close()
+                        except Exception:
+                            pass
+                    self._picam2 = None
+                    self._is_picam2 = False
+            elif _PICAM_IMPORT_ERR:
+                # Picamera2 couldn't be imported in current Python environment
+                pass
 
         # 2. Fall back to standard OpenCV VideoCapture (for USB Webcams or PC development)
         backends = [cv2.CAP_ANY]
