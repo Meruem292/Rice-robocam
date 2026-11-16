@@ -24,12 +24,13 @@
  *    - GPS RX -> ESP32 TX2 (GPIO 17)
  *    - VCC -> 3.3V, GND -> GND
  *
- * 4. USB Serial to Host PC:
+ * 4. USB / Hardware UART Serial to Host (RPi 4B):
  *    - Baud: 115200 (newline-delimited JSON)
  *
- * 5. Manual Motor Test (Serial Monitor, 115200 baud):
- *    - Send one character + newline: W/S/A/D, 1/2, X, +/-, ?
- *    - These commands are ignored by the web app and do not use JSON.
+ * 5. Smooth Motion & Ramping:
+ *    - Soft acceleration curve prevents "shocking" the rover on takeoff.
+ *    - Soft deceleration curve prevents violent wheel-lock when releasing 'W'.
+ *    - Continuous drive heartbeat prevents premature 2-second timeout while key is held.
  * ============================================================================== */
 
 #include <Arduino.h>
@@ -66,14 +67,9 @@ const uint32_t GPS_BAUD = 9600;
 const int PIN_LED = 2;
 
 // PWM Configuration
-const int PWM_FREQ = 1000;       // 1 kHz (PC817 optocouplers easily support up to 3-5 kHz)
+const int PWM_FREQ = 1000;       // 1 kHz
 const int PWM_RESOLUTION = 10;   // 10-bit (0 - 1023)
 const int PWM_MAX = 1023;
-
-// PC817 Optocoupler Board Inversion:
-// - Set to false (default): Direct wiring or non-inverting optocoupler boards (Input HIGH -> Output HIGH)
-// - Set to true: Inverting PC817 boards where phototransistor pulls output LOW when input is activated
-#define OPTOCOUPLER_INVERTED false
 
 // PWM Channels (for ESP32 core v2.x)
 const int CH_LEFT_RPWM  = 0;
@@ -83,6 +79,26 @@ const int CH_RIGHT_LPWM = 3;
 
 // Hardware Serial for GPS
 HardwareSerial GPS_Serial(2);
+
+// ------------------------------------------------------------------------------
+// SPEED & SOFT ACCELERATION TUNING
+// ------------------------------------------------------------------------------
+// Top speed scaling (0.0 to 1.0). 0.50 = 50% max power (great for field control)
+const float SPEED_LIMIT       = 0.50f;
+
+// Acceleration rate: how much duty increases per second (Lower = softer start)
+// 0.35 means taking ~1.2s to smoothly ramp to 40% duty with ZERO jerk.
+const float RAMP_UP_PER_SEC   = 0.35f;
+
+// Deceleration rate: how much duty decreases per second when releasing 'W'
+// 0.70 brings the rover to a smooth rolling stop over ~0.6s without slamming the brakes.
+const float RAMP_DOWN_PER_SEC = 0.70f;
+
+float target_left = 0.0f;
+float target_right = 0.0f;
+float cur_left = 0.0f;
+float cur_right = 0.0f;
+uint32_t last_ramp_ms = 0;
 
 // ------------------------------------------------------------------------------
 // STATE VARIABLES
@@ -113,7 +129,7 @@ uint32_t last_led_blink_ms = 0;  // Heartbeat LED
 uint32_t last_status_tx_ms = 0;  // 1 Hz link + motor driver status telemetry
 bool led_state = false;
 
-const uint32_t MOTOR_TIMEOUT_MS = 2000; // Stop motors if no command within 2 seconds
+const uint32_t MOTOR_TIMEOUT_MS = 2000; // Stop motors if no communication within 2 seconds
 
 // Link + per-driver monitoring state (reported to the web app)
 uint32_t last_host_msg_ms = 0;
@@ -132,22 +148,18 @@ String input_line = "";
 // Manual motor test mode (single-character serial commands)
 bool test_mode_active = false;
 char test_motion = 'X';
-int test_speed = 120; // 0 - 255, same default as the standalone test sketch
+int test_speed = 120; // 0 - 255
 
 // ------------------------------------------------------------------------------
-// MOTOR CONTROL
+// MOTOR CONTROL FUNCTIONS
 // ------------------------------------------------------------------------------
 void setPWM(int pin, int channel, int duty) {
-    int out_duty = duty;
-#if OPTOCOUPLER_INVERTED
-    out_duty = PWM_MAX - duty;
-#endif
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR >= 3)
     // ESP32 Arduino Core 3.x
-    ledcWrite(pin, out_duty);
+    ledcWrite(pin, duty);
 #else
     // ESP32 Arduino Core 2.x
-    ledcWrite(channel, out_duty);
+    ledcWrite(channel, duty);
 #endif
 }
 
@@ -195,7 +207,13 @@ void motorsInit() {
     right_driver_dir = "stop";
 }
 
+// Hard instant stop: used when link is lost or emergency abort is triggered
 void motorsStop() {
+    target_left = 0.0f;
+    target_right = 0.0f;
+    cur_left = 0.0f;
+    cur_right = 0.0f;
+
     setPWM(PIN_LEFT_RPWM, CH_LEFT_RPWM, 0);
     setPWM(PIN_LEFT_LPWM, CH_LEFT_LPWM, 0);
     setPWM(PIN_RIGHT_RPWM, CH_RIGHT_RPWM, 0);
@@ -209,7 +227,15 @@ void motorsStop() {
     right_driver_dir = "stop";
 }
 
-void setMotors(float left_duty, float right_duty) {
+// Gentle stop: smoothly brings motors to a halt without violent braking jerk
+void motorsSoftStop() {
+    target_left = 0.0f;
+    target_right = 0.0f;
+    last_cmd_time_ms = millis();
+}
+
+// Writes the actual PWM to the BTS7960 drivers (called by rampUpdate)
+void driveMotors(float left_duty, float right_duty) {
     // Clamp values between -1.0 and 1.0
     if (left_duty > 1.0f) left_duty = 1.0f;
     if (left_duty < -1.0f) left_duty = -1.0f;
@@ -246,12 +272,53 @@ void setMotors(float left_duty, float right_duty) {
 
     left_driver_duty = left_duty;
     right_driver_duty = right_duty;
-    left_driver_enabled = left_duty > 0.02f || left_duty < -0.02f;
-    right_driver_enabled = right_duty > 0.02f || right_duty < -0.02f;
+    left_driver_enabled = (left_duty > 0.02f || left_duty < -0.02f);
+    right_driver_enabled = (right_duty > 0.02f || right_duty < -0.02f);
     left_driver_dir = left_driver_enabled ? (left_duty > 0 ? "forward" : "reverse") : "stop";
     right_driver_dir = right_driver_enabled ? (right_duty > 0 ? "forward" : "reverse") : "stop";
+}
 
-    last_cmd_time_ms = millis();
+// Sets the TARGET speed (scaled by SPEED_LIMIT). rampUpdate() moves toward it smoothly.
+void setMotors(float l, float r) {
+    if (l > 1.0f) l = 1.0f;
+    if (l < -1.0f) l = -1.0f;
+    if (r > 1.0f) r = 1.0f;
+    if (r < -1.0f) r = -1.0f;
+
+    target_left  = l * SPEED_LIMIT;
+    target_right = r * SPEED_LIMIT;
+
+    last_cmd_time_ms = millis(); // Watchdog refreshed
+}
+
+// Moves current speed toward target at a soft rate (call every loop)
+void rampUpdate() {
+    uint32_t now = millis();
+    float dt = (now - last_ramp_ms) / 1000.0f;
+    last_ramp_ms = now;
+    if (dt <= 0.0f || dt > 0.2f) dt = 0.01f;
+
+    // Left motor ramping
+    float dl = target_left - cur_left;
+    float rate_l = (fabs(target_left) >= fabs(cur_left)) ? RAMP_UP_PER_SEC : RAMP_DOWN_PER_SEC;
+    float step_l = rate_l * dt;
+    if (dl >  step_l) dl =  step_l;
+    if (dl < -step_l) dl = -step_l;
+    cur_left += dl;
+
+    // Right motor ramping
+    float dr = target_right - cur_right;
+    float rate_r = (fabs(target_right) >= fabs(cur_right)) ? RAMP_UP_PER_SEC : RAMP_DOWN_PER_SEC;
+    float step_r = rate_r * dt;
+    if (dr >  step_r) dr =  step_r;
+    if (dr < -step_r) dr = -step_r;
+    cur_right += dr;
+
+    // Snap to zero when target is zero and current speed is negligible (kills motor hum)
+    if (target_left == 0.0f && fabs(cur_left) < 0.02f) cur_left = 0.0f;
+    if (target_right == 0.0f && fabs(cur_right) < 0.02f) cur_right = 0.0f;
+
+    driveMotors(cur_left, cur_right);
 }
 
 // ------------------------------------------------------------------------------
@@ -270,7 +337,7 @@ void printMotorTestMenu() {
 
 void applyTestMotion() {
     if (!test_mode_active || test_motion == 'X') {
-        motorsStop();
+        motorsSoftStop();
         return;
     }
 
@@ -283,7 +350,7 @@ void applyTestMotion() {
         case 'D': setMotors(duty, -duty); break;
         case '1': setMotors(duty, 0.0f); break;
         case '2': setMotors(0.0f, duty); break;
-        default: motorsStop(); break;
+        default: motorsSoftStop(); break;
     }
 }
 
@@ -311,8 +378,7 @@ bool handleMotorTestCommand(const String &cmd) {
         case 'X':
             test_motion = 'X';
             test_mode_active = false;
-            motorsStop();
-            last_cmd_time_ms = millis();
+            motorsSoftStop();
             Serial.println("Motor test: STOP");
             return true;
 
@@ -465,7 +531,7 @@ void mpuUpdate() {
     float gx_dps = (float)gx / 65.5f;
     float gy_dps = (float)gy / 65.5f;
     float gz_dps = ((float)gz - gz_bias) / 65.5f;
-    if (fabs(gz_dps) < 0.30f) gz_dps = 0.0f; // Deadband filter to prevent stationary drift
+    if (fabs(gz_dps) < 0.30f) gz_dps = 0.0f; // Deadband filter
 
     // Accel angles
     float accel_roll = atan2(ay_g, az_g) * 180.0f / M_PI;
@@ -493,7 +559,7 @@ double parseNmeaCoord(String raw, String dir) {
     int dot_idx = raw.indexOf('.');
     if (dot_idx < 2) return 0.0;
 
-    int deg_len = (dot_idx == 4) ? 2 : 3; // ddmm.mmmm vs dddmm.mmmm
+    int deg_len = (dot_idx == 4) ? 2 : 3;
     double degrees = raw.substring(0, deg_len).toDouble();
     double minutes = raw.substring(deg_len).toDouble();
     double dec = degrees + (minutes / 60.0);
@@ -502,9 +568,7 @@ double parseNmeaCoord(String raw, String dir) {
 }
 
 void parseNmeaLine(String line) {
-    // Check GPRMC or GNRMC (Recommended Minimum Navigation Information)
     if (line.startsWith("$GPRMC") || line.startsWith("$GNRMC")) {
-        // Example: $GPRMC,045319.00,A,1540.3021,N,12053.5681,E,0.02,23.4,121126,,,A*78
         int idx = 0;
         String tokens[13];
         int token_count = 0;
@@ -517,7 +581,7 @@ void parseNmeaLine(String line) {
         }
 
         if (token_count >= 7) {
-            String status = tokens[2]; // 'A' = valid, 'V' = receiver warning
+            String status = tokens[2];
             if (status == "A") {
                 gps_status = "fix";
                 gps_lat = parseNmeaCoord(tokens[3], tokens[4]);
@@ -527,9 +591,7 @@ void parseNmeaLine(String line) {
             }
         }
     }
-    // Check GPGGA or GNGGA (Global Positioning System Fix Data)
     else if (line.startsWith("$GPGGA") || line.startsWith("$GNGGA")) {
-        // Example: $GPGGA,045319.00,1540.3021,N,12053.5681,E,1,08,1.2,45.0,M,...
         int idx = 0;
         String tokens[15];
         int token_count = 0;
@@ -582,14 +644,18 @@ void handleCommand(String json) {
 
     if (json.length() < 5) return;
 
-    // Any valid host message proves the host->ESP32 link is alive
+    // Any valid host command or ping proves the link is actively connected!
     if (json.indexOf("\"c\"") != -1) {
         host_seen = true;
         last_host_msg_ms = millis();
+        // Crucial fix: as long as host heartbeat/ping is flowing, refresh watchdog so active driving doesn't stall!
+        if (target_left != 0.0f || target_right != 0.0f) {
+            last_cmd_time_ms = millis();
+        }
     }
 
     // Check command type "c"
-    // Motor command: {"c":"m","l":0.65,"r":0.65}
+    // Motor drive command: {"c":"m","l":0.65,"r":0.65}
     int c_idx = json.indexOf("\"c\":\"m\"");
     if (c_idx == -1) c_idx = json.indexOf("\"c\": \"m\"");
     if (c_idx != -1) {
@@ -621,21 +687,20 @@ void handleCommand(String json) {
         return;
     }
 
-    // Stop command: {"c":"s"}
+    // Normal Stop command: {"c":"s"} -> Smooth deceleration to halt
     if (json.indexOf("\"c\":\"s\"") != -1 || json.indexOf("\"c\": \"s\"") != -1) {
         test_mode_active = false;
-        motorsStop();
-        last_cmd_time_ms = millis();
+        motorsSoftStop();
         return;
     }
 
-    // Ping command: {"c":"p"} -> pong + link/driver status
+    // Ping / heartbeat: {"c":"p"} -> pong + link/driver status
     if (json.indexOf("\"c\":\"p\"") != -1 || json.indexOf("\"c\": \"p\"") != -1) {
         sendMotorStatus("k");
         return;
     }
 
-    // Reset Yaw command: {"c":"ry"}
+    // Reset Yaw: {"c":"ry"}
     if (json.indexOf("\"c\":\"ry\"") != -1 || json.indexOf("\"c\": \"ry\"") != -1) {
         yaw_deg = 0.0f;
         return;
@@ -646,7 +711,7 @@ void handleCommand(String json) {
 // ARDUINO SETUP & MAIN LOOP
 // ------------------------------------------------------------------------------
 void setup() {
-    // 1. USB Serial to Host PC
+    // 1. USB / UART Serial to Host
     Serial.begin(115200);
     delay(200);
 
@@ -668,8 +733,9 @@ void setup() {
     last_gps_tx_ms = millis();
     last_led_blink_ms = millis();
     last_status_tx_ms = millis();
+    last_ramp_ms = millis();
 
-    // Initial announce
+    // Announce ready
     Serial.println("{\"t\":\"k\",\"status\":\"ready\"}");
     sendMotorStatus("k");
     digitalWrite(PIN_LED, LOW);
@@ -678,7 +744,7 @@ void setup() {
 void loop() {
     uint32_t now = millis();
 
-    // 1. Read incoming commands from Host PC (USB Serial)
+    // 1. Read incoming commands from Host (USB / Hardware UART Serial)
     while (Serial.available()) {
         char c = (char)Serial.read();
         if (c == '\n' || c == '\r') {
@@ -699,8 +765,10 @@ void loop() {
     // 3. Update IMU readings
     mpuUpdate();
 
+    // 3b. Soft ramp motor speed toward target (smooth takeoff & braking)
+    rampUpdate();
+
     // 4. Send IMU Telemetry @ 20 Hz (every 50 ms)
-    // Format: {"t":"i","r":1.2,"p":-0.5,"y":0.0,"ok":1}
     if (now - last_imu_tx_ms >= 50) {
         last_imu_tx_ms = now;
         Serial.print("{\"t\":\"i\",\"r\":");
@@ -715,7 +783,6 @@ void loop() {
     }
 
     // 5. Send GPS Telemetry @ 1 Hz (every 1000 ms)
-    // Format: {"t":"g","s":"fix","la":15.67170,"lo":120.89280,"n":8}
     if (now - last_gps_tx_ms >= 1000) {
         last_gps_tx_ms = now;
         Serial.print("{\"t\":\"g\",\"s\":\"");
@@ -730,16 +797,18 @@ void loop() {
     }
 
     // 6. Link + motor driver status @ 1 Hz (every 1000 ms)
-    // Format: {"t":"s","l":{...},"r":{...},"host":1,"ha":125,"up":42}
     if (now - last_status_tx_ms >= 1000) {
         last_status_tx_ms = now;
         sendMotorStatus("s");
     }
 
-    // 7. Safety Watchdog: Stop motors if no command received for 2.0 seconds.
-    //    Manual test mode is exempt so motors keep running until 'X' is sent.
-    if (!test_mode_active && now - last_cmd_time_ms > MOTOR_TIMEOUT_MS) {
-        motorsStop();
+    // 7. Safety Watchdog:
+    //    If rover is driving and no communication has arrived from host for > 2000 ms
+    //    (e.g., serial cable disconnected, WiFi died, or Pi crashed), immediately stop for safety!
+    if (!test_mode_active && (target_left != 0.0f || target_right != 0.0f || cur_left != 0.0f || cur_right != 0.0f)) {
+        if (now - last_cmd_time_ms > MOTOR_TIMEOUT_MS) {
+            motorsStop();
+        }
     }
 
     // 8. Heartbeat LED blink (toggles every 500 ms)
@@ -749,4 +818,3 @@ void loop() {
         digitalWrite(PIN_LED, led_state ? HIGH : LOW);
     }
 }
-

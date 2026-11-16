@@ -1484,23 +1484,46 @@
       });
     }
 
+    let activeDriveInterval = null;
+    let activeDriveCmd = null;
+
     async function sendDrive(cmd) {
       highlightPad(cmd);
-      await fetch("/api/drive", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: cmd })
-      });
+      if (cmd === "stop") {
+        releaseDrive();
+        return;
+      }
+      if (cmd === activeDriveCmd && activeDriveInterval) return;
+      activeDriveCmd = cmd;
+      if (activeDriveInterval) {
+        clearInterval(activeDriveInterval);
+        activeDriveInterval = null;
+      }
+      const doSend = () => {
+        fetch("/api/drive", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: cmd })
+        }).catch(() => {});
+      };
+      doSend();
+      // Keep sending drive heartbeat every 300ms while user holds key/button
+      activeDriveInterval = setInterval(doSend, 300);
     }
 
     async function releaseDrive() {
+      if (activeDriveInterval) {
+        clearInterval(activeDriveInterval);
+        activeDriveInterval = null;
+      }
+      activeDriveCmd = null;
       if (!state.autoActive) {
         highlightPad(null);
         await fetch("/api/drive", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ command: "stop" })
-        });
+        }).catch(() => {});
       }
     }
 
@@ -2459,6 +2482,9 @@
           e.preventDefault();
           releaseDrive();
         }
+      });
+      window.addEventListener("blur", () => {
+        releaseDrive();
       });
     }
 
