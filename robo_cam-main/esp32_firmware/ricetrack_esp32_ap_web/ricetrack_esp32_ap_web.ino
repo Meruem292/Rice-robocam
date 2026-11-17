@@ -478,11 +478,14 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     </div>
 
     <!-- PI ADDRESS & AUTO-FIND BAR -->
-    <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center; background:#21262d; padding:6px 8px; border-radius:6px; flex-wrap:wrap;">
+    <div style="display:flex; gap:6px; margin-bottom:6px; align-items:center; background:#21262d; padding:6px 8px; border-radius:6px; flex-wrap:wrap;">
       <span style="font-size:12px; color:#8b949e;">Pi Host:</span>
       <input id="inpPiHost" type="text" value="192.168.4.50:8000" style="background:#0d1117; color:#58a6ff; border:1px solid #30363d; border-radius:4px; padding:3px 6px; width:135px; font-size:12px; font-weight:bold;">
       <button onclick="applyPiHost()" style="background:#238636; color:#fff; border:none; border-radius:4px; padding:4px 10px; font-size:12px; font-weight:bold; cursor:pointer;">Connect</button>
       <button onclick="autoScanPi()" style="background:#1f6feb; color:#fff; border:none; border-radius:4px; padding:4px 8px; font-size:11px; font-weight:600; cursor:pointer;">🔍 Auto-Find</button>
+    </div>
+    <div id="stationAlert" style="font-size:11px; color:#8b949e; margin-bottom:8px; text-align:left;">
+      Wi-Fi Devices: <span id="lblStations" style="color:#58a6ff; font-weight:bold;">Checking…</span>
     </div>
 
     <div class="cam-box">
@@ -560,12 +563,17 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     let isContinuous = true;
     let curSpeed = 0.75;
     let piHost = localStorage.getItem("pi_host") || "192.168.4.50:8000";
+    if (!piHost || piHost.startsWith("192.168.4.1")) {
+      piHost = "192.168.4.50:8000";
+      localStorage.setItem("pi_host", piHost);
+    }
 
     const candidateHosts = [
       "192.168.4.50:8000",
       "192.168.4.2:8000",
       "192.168.4.3:8000",
       "192.168.4.4:8000",
+      "192.168.4.5:8000",
       "192.168.4.50:8001",
       "192.168.4.2:8001",
       "192.168.4.3:8001"
@@ -579,6 +587,10 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         if (inp && inp.value.trim()) {
           piHost = inp.value.trim();
         }
+      }
+      if (piHost.startsWith("192.168.4.1")) {
+        alert("Notice: 192.168.4.1 is the ESP32! The Raspberry Pi is at 192.168.4.50 (or 192.168.4.2 / 192.168.4.3).");
+        piHost = "192.168.4.50:8000";
       }
       localStorage.setItem("pi_host", piHost);
       const inp = document.getElementById('inpPiHost');
@@ -703,6 +715,18 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
           if (data.turning) {
             document.getElementById('lblMotion').textContent = "TURNING (" + (data.accum ? data.accum.toFixed(0) : "0") + "°)";
           }
+          if (data.stations != null) {
+            const stTxt = document.getElementById('lblStations');
+            if (stTxt) {
+              if (data.stations >= 2) {
+                stTxt.textContent = data.stations + " (Phone + Pi Connected ✅)";
+                stTxt.style.color = "#2ea043";
+              } else {
+                stTxt.textContent = data.stations + " (Phone only · Pi NOT connected ⚠️)";
+                stTxt.style.color = "#e3b341";
+              }
+            }
+          }
         }
       } catch(e) {}
     }, 280);
@@ -710,7 +734,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     // Initialize from localStorage if saved
     window.addEventListener("DOMContentLoaded", () => {
       const saved = localStorage.getItem("pi_host");
-      if (saved) {
+      if (saved && !saved.startsWith("192.168.4.1")) {
         window.applyPiHost(saved);
       }
     });
@@ -753,7 +777,8 @@ void handleTelemetry() {
     json += "\"turning\":" + String(is_turning_closed_loop ? "true" : "false") + ",";
     json += "\"accum\":" + String(turn_accumulated_degrees, 1) + ",";
     json += "\"motion\":\"" + current_motion + "\",";
-    json += "\"speed\":" + String(current_speed, 2);
+    json += "\"speed\":" + String(current_speed, 2) + ",";
+    json += "\"stations\":" + String(WiFi.softAPgetStationNum());
     json += "}";
     server.send(200, "application/json", json);
 }
