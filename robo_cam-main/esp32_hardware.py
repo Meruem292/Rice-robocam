@@ -117,8 +117,8 @@ class ESP32PinConfig:
     pwm_freq_hz: int = 1000
 
     # Default duty cycles for MY1016Z2 24V DC Motors
-    drive_duty: float = 0.65   # 65% duty cycle for smooth field traversal (~0.6 m/s)
-    turn_duty: float = 0.50    # 50% duty cycle for differential steering (~0.4 m/s)
+    drive_duty: float = 0.75   # 75% duty cycle for solid starting torque (~0.7 m/s)
+    turn_duty: float = 0.75    # 75% duty cycle for confident pivot turns
 
     # Serial USB bridge configuration (ESP32 ↔ Host PC)
     bridge_baud: int = 115200

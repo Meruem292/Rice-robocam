@@ -214,11 +214,6 @@ void setMotors(float left_duty, float right_duty) {
     float l = left_duty * SPEED_SCALE;
     float r = right_duty * SPEED_SCALE;
 
-    // If duty cycle is already set to this target, do not re-trigger PWM hardware registers
-    if (fabs(left_driver_duty - l) < 0.005f && fabs(right_driver_duty - r) < 0.005f) {
-        return;
-    }
-
     // Left Motor (RPWM = forward, LPWM = reverse)
     if (l > 0.02f) {
         int duty = (int)(l * PWM_MAX);

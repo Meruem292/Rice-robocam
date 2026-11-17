@@ -801,7 +801,14 @@
               </div>
             </div>
 
-            <div style="text-align:center; font-size:11px; color:var(--muted);">
+            <div style="text-align:center; margin:8px 0 4px;">
+              <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; color:var(--text); background:var(--surface2); padding:5px 12px; border-radius:6px; border:1px solid var(--border);">
+                <input type="checkbox" id="chkContinuousDrive" onchange="toggleContinuousDrive(this.checked)" checked>
+                <span><b>Continuous Mode</b> (Click to run, Click Stop to halt)</span>
+              </label>
+            </div>
+
+            <div style="text-align:center; font-size:11px; color:var(--muted); margin-top:4px;">
               WASD / Arrows / Pad steer in Manual &amp; Auto (5s) · T Auto · Space Stop
             </div>
 
@@ -1484,11 +1491,16 @@
       });
     }
 
+    let isContinuousDrive = true;
     let activeDriveCmd = null;
+
+    function toggleContinuousDrive(val) {
+      isContinuousDrive = !!val;
+    }
 
     async function sendDrive(cmd) {
       if (cmd === "stop") {
-        releaseDrive();
+        releaseDrive(true);
         return;
       }
       if (cmd === activeDriveCmd) return;
@@ -1502,16 +1514,18 @@
       }).catch(() => {});
     }
 
-    async function releaseDrive() {
-      if (!activeDriveCmd) return;
-      activeDriveCmd = null;
-      if (!state.autoActive) {
-        highlightPad(null);
-        fetch("/api/drive", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command: "stop" })
-        }).catch(() => {});
+    async function releaseDrive(forceStop = false) {
+      if (!isContinuousDrive || forceStop) {
+        if (!activeDriveCmd && !forceStop) return;
+        activeDriveCmd = null;
+        if (!state.autoActive) {
+          highlightPad(null);
+          fetch("/api/drive", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ command: "stop" })
+          }).catch(() => {});
+        }
       }
     }
 
@@ -2468,11 +2482,15 @@
         const cmd = keyMap[e.code];
         if (cmd && cmd !== "stop" && cmd === activeDriveCmd) {
           e.preventDefault();
-          releaseDrive();
+          if (!isContinuousDrive) {
+            releaseDrive(true);
+          }
         }
       });
       window.addEventListener("blur", () => {
-        releaseDrive();
+        if (!isContinuousDrive) {
+          releaseDrive(true);
+        }
       });
     }
 
