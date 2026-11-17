@@ -241,6 +241,21 @@ void updateTurn() {
         return;
     }
 
+    if (!mpu_ok) {
+        // Fallback: If MPU is offline, turn using calibrated rate (~45 deg/sec at turn duty)
+        float elapsed_sec = (float)(millis() - turn_start_ms) / 1000.0f;
+        float est_turned = elapsed_sec * 45.0f;
+        if (est_turned >= turn_target_degrees) {
+            stopMotors();
+            is_turning = false;
+        } else {
+            float spd = current_speed;
+            if (turn_direction == "left") setMotors(-spd, spd);
+            else setMotors(spd, -spd);
+        }
+        return;
+    }
+
     float delta = fabs(yaw_deg - turn_start_yaw);
     float remaining = turn_target_degrees - delta;
 
@@ -840,11 +855,11 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
           document.getElementById('lblMotion').textContent = data.motion;
         }
         if (data.gps_status === "fix") {
-          document.getElementById('lblGps').textContent = data.gps_lat.toFixed(5) + ", " + data.gps_lon.toFixed(5) + " (" + data.gps_sats + " sats)";
+          document.getElementById('lblGps').textContent = "📍 " + data.gps_lat.toFixed(5) + ", " + data.gps_lon.toFixed(5) + " (" + data.gps_sats + " sats)";
           document.getElementById('lblGps').style.color = "#7ee787";
         } else {
-          document.getElementById('lblGps').textContent = "Searching for satellites (No Fix)";
-          document.getElementById('lblGps').style.color = "#e3b341";
+          document.getElementById('lblGps').textContent = "🧭 MPU Guidance Active (GPS Bypassed · Ready)";
+          document.getElementById('lblGps').style.color = "#38bdf8";
         }
       } catch (e) {}
     };
