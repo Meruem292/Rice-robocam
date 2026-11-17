@@ -275,8 +275,8 @@ void applyTestMotion() {
     switch (test_motion) {
         case 'W': setMotors(duty, duty); break;
         case 'S': setMotors(-duty, -duty); break;
-        case 'A': setMotors(-duty, duty); break;
-        case 'D': setMotors(duty, -duty); break;
+        case 'A': setMotors(duty, -duty); break;
+        case 'D': setMotors(-duty, duty); break;
         case '1': setMotors(duty, 0.0f); break;
         case '2': setMotors(0.0f, duty); break;
         default: motorsStop(); break;
