@@ -484,6 +484,8 @@ class ESP32SerialBridge(QObject):
             return
 
         msg_type = msg.get("t")
+        if msg_type:
+            self._last_pong_time = time.monotonic()
 
         if msg_type == "i":
             # IMU data: {"t":"i","r":<roll>,"p":<pitch>,"y":<yaw>,"ok":<0|1>}
@@ -933,6 +935,9 @@ class ESP32BTS7960Motors(QObject):
     def execute(self, command: str):
         """Execute a rover movement command ('forward', 'backward', 'left', 'right', 'stop')."""
         cmd = (command or "stop").lower().strip()
+        if cmd == self._current_cmd and cmd != "stop":
+            return  # Already executing this motion; do not disturb motors or spam UART
+
         d_drive = PINS.drive_duty
         d_turn = PINS.turn_duty
 

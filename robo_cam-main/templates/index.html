@@ -777,25 +777,25 @@
               <div class="dpad-grid">
                 <div></div>
                 <button class="pad-btn" id="pad-forward"
-                  onmousedown="sendDrive('forward')" onmouseup="releaseDrive()"
-                  ontouchstart="sendDrive('forward'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();"
+                  onmousedown="sendDrive('forward')" onmouseup="releaseDrive()" onmouseleave="releaseDrive()"
+                  ontouchstart="sendDrive('forward'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();" ontouchcancel="releaseDrive();"
                   title="Forward (W / Up)">↑</button>
                 <div></div>
 
                 <button class="pad-btn" id="pad-left"
-                  onmousedown="sendDrive('left')" onmouseup="releaseDrive()"
-                  ontouchstart="sendDrive('left'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();"
+                  onmousedown="sendDrive('left')" onmouseup="releaseDrive()" onmouseleave="releaseDrive()"
+                  ontouchstart="sendDrive('left'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();" ontouchcancel="releaseDrive();"
                   title="Left (A / Left)">←</button>
                 <button class="pad-btn" id="pad-stop" onclick="sendDrive('stop')" title="Stop (Space)">▢</button>
                 <button class="pad-btn" id="pad-right"
-                  onmousedown="sendDrive('right')" onmouseup="releaseDrive()"
-                  ontouchstart="sendDrive('right'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();"
+                  onmousedown="sendDrive('right')" onmouseup="releaseDrive()" onmouseleave="releaseDrive()"
+                  ontouchstart="sendDrive('right'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();" ontouchcancel="releaseDrive();"
                   title="Right (D / Right)">→</button>
 
                 <div></div>
                 <button class="pad-btn" id="pad-backward"
-                  onmousedown="sendDrive('backward')" onmouseup="releaseDrive()"
-                  ontouchstart="sendDrive('backward'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();"
+                  onmousedown="sendDrive('backward')" onmouseup="releaseDrive()" onmouseleave="releaseDrive()"
+                  ontouchstart="sendDrive('backward'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();" ontouchcancel="releaseDrive();"
                   title="Backward (S / Down)">↓</button>
                 <div></div>
               </div>
@@ -1484,42 +1484,30 @@
       });
     }
 
-    let activeDriveInterval = null;
     let activeDriveCmd = null;
 
     async function sendDrive(cmd) {
-      highlightPad(cmd);
       if (cmd === "stop") {
         releaseDrive();
         return;
       }
-      if (cmd === activeDriveCmd && activeDriveInterval) return;
+      if (cmd === activeDriveCmd) return;
       activeDriveCmd = cmd;
-      if (activeDriveInterval) {
-        clearInterval(activeDriveInterval);
-        activeDriveInterval = null;
-      }
-      const doSend = () => {
-        fetch("/api/drive", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command: cmd })
-        }).catch(() => {});
-      };
-      doSend();
-      // Keep sending drive heartbeat every 300ms while user holds key/button
-      activeDriveInterval = setInterval(doSend, 300);
+      highlightPad(cmd);
+
+      fetch("/api/drive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command: cmd })
+      }).catch(() => {});
     }
 
     async function releaseDrive() {
-      if (activeDriveInterval) {
-        clearInterval(activeDriveInterval);
-        activeDriveInterval = null;
-      }
+      if (!activeDriveCmd) return;
       activeDriveCmd = null;
       if (!state.autoActive) {
         highlightPad(null);
-        await fetch("/api/drive", {
+        fetch("/api/drive", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ command: "stop" })
@@ -2478,7 +2466,7 @@
         if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
         if (state.activeTab !== "control") return;
         const cmd = keyMap[e.code];
-        if (cmd && cmd !== "stop") {
+        if (cmd && cmd !== "stop" && cmd === activeDriveCmd) {
           e.preventDefault();
           releaseDrive();
         }
