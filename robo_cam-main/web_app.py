@@ -405,7 +405,7 @@ class WebHardwareHub:
         # Instruct ESP32 hardware closed-loop turn controller
         self._send_esp32_cmd("turn_deg", turn_dir=turn_dir, deg=target_degrees)
         self.motor_cmd = f"turn_{turn_dir}"
-        self.speed = 0.55
+        self.speed = 0.42
 
         start_yaw = self.imu.yaw
         t0 = time.monotonic()
@@ -424,17 +424,19 @@ class WebHardwareHub:
             self.instructed_state["current_yaw"] = round(cur_yaw, 1)
             self.instructed_state["target_yaw"] = round(target_degrees, 1)
             self.instructed_state["phase_detail"] = (
-                f"Turning {turn_dir.capitalize()}: {delta:.1f}° / {target_degrees:.0f}° (MPU-6050 Heading)"
+                f"Turning {turn_dir.capitalize()}: {delta:.1f}° / {target_degrees:.0f}° (MPU-6050 Precision)"
             )
 
-            if delta >= (target_degrees - 2.0):
+            # Lead angle detection — allow ESP32 active reverse brake to execute
+            if delta >= (target_degrees - 1.5):
                 break
             time.sleep(0.04)
 
-        self._send_esp32_cmd("stop")
+        # Allow ESP32 dynamic brake pulse & settle sequence to finalize
+        time.sleep(0.25)
         self.motor_cmd = "stop"
         self.speed = 0.0
-        time.sleep(0.35)
+        time.sleep(0.20)
         return True
 
     def _instructed_worker(self, steps: list[dict]):
@@ -473,7 +475,7 @@ class WebHardwareHub:
                         elapsed = time.monotonic() - t0
                         self.instructed_state["elapsed_s"] = round(elapsed, 1)
                         self.instructed_state["phase_detail"] = (
-                            f"Move {step_num}: Driving {dist:.1f}m ({elapsed:.0f}s / {target_s:.0f}s)"
+                            f"Move {step_num}: Driving {dist:.1f}m ({elapsed:.0f}s / {target_s:.0f}s) · Gyro Heading Lock"
                         )
                         time.sleep(0.1)
 
@@ -580,6 +582,7 @@ class WebHardwareHub:
         last_tick = time.monotonic()
         last_imu_retry = 0.0
         last_gps_scan = 0.0
+        last_esp_wifi_poll = 0.0
         while self._running:
             now = time.monotonic()
 
@@ -589,6 +592,27 @@ class WebHardwareHub:
                     last_imu_retry = now
                 try:
                     self.imu._poll()
+                except Exception:
+                    pass
+
+            # 1b. If USB serial is disconnected, sync MPU telemetry from ESP32 AP over Wi-Fi
+            if not self.imu._bridge.connected and (now - last_esp_wifi_poll) >= 0.15:
+                last_esp_wifi_poll = now
+                try:
+                    import urllib.request, json
+                    req = urllib.request.Request("http://192.168.4.1/telemetry")
+                    with urllib.request.urlopen(req, timeout=0.25) as resp:
+                        if resp.status == 200:
+                            tdata = json.loads(resp.read().decode())
+                            if tdata.get("mpu_ok"):
+                                self.imu._bridge._current_yaw = float(tdata.get("yaw", 0.0))
+                                self.imu._bridge._current_pitch = float(tdata.get("pitch", 0.0))
+                                self.imu._bridge._current_roll = float(tdata.get("roll", 0.0))
+                                self.imu._ok = True
+                                self.imu_ok = True
+                                self.yaw = round(self.imu._bridge._current_yaw, 1)
+                                self.pitch = round(self.imu._bridge._current_pitch, 1)
+                                self.roll = round(self.imu._bridge._current_roll, 1)
                 except Exception:
                     pass
 

@@ -68,13 +68,22 @@ float comp_pitch = 0.0f;
 uint32_t last_imu_time_us = 0;
 uint32_t last_imu_tx_ms = 0;
 
-// Closed-Loop Turn Control
+// Closed-Loop Turn Control State Machine
 bool is_turning_closed_loop = false;
 float turn_target_degrees = 90.0f;
 float turn_accumulated_degrees = 0.0f;
 String turn_active_dir = "left";
 uint32_t turn_start_time_ms = 0;
 uint32_t turn_timeout_time_ms = 0;
+int turn_state = 0;  // 0: idle, 1: turning, 2: reverse brake, 3: settle, 4: micro-nudge
+uint32_t turn_brake_time_ms = 0;
+
+// Straight-Line Gyro Heading Lock (Compass Hold)
+bool heading_lock_enabled = true;
+bool heading_lock_active = false;
+float heading_lock_target = 0.0f;
+const float HEADING_KP = 0.016f;     // Proportional steering trim gain
+const float MAX_STEER_TRIM = 0.20f;  // Max 20% differential PWM trim
 
 // ------------------------------------------------------------------------------
 // PWM CONTROL
@@ -155,6 +164,7 @@ void setMotors(float l, float r) {
 }
 
 void stopMotors() {
+    heading_lock_active = false;
     setMotors(0.0f, 0.0f);
     current_motion = "STOP";
 }
@@ -164,28 +174,35 @@ void applyCommand(const String& cmd) {
     float spd = current_speed;
 
     if (cmd == "forward") {
+        heading_lock_target = yaw_deg;
+        heading_lock_active = heading_lock_enabled && mpu_ok;
         setMotors(spd, spd);
     } else if (cmd == "backward") {
+        heading_lock_target = yaw_deg;
+        heading_lock_active = heading_lock_enabled && mpu_ok;
         setMotors(-spd, -spd);
-    } else if (cmd == "left") {
-        setMotors(-spd, spd);  // Left reverse, Right forward -> pivot left
-    } else if (cmd == "right") {
-        setMotors(spd, -spd);  // Left forward, Right reverse -> pivot right
-    } else if (cmd == "left_fwd") {
-        setMotors(0.0f, spd);
-    } else if (cmd == "left_rev") {
-        setMotors(0.0f, -spd);
-    } else if (cmd == "right_fwd") {
-        setMotors(spd, 0.0f);
-    } else if (cmd == "right_rev") {
-        setMotors(-spd, 0.0f);
     } else {
-        stopMotors();
+        heading_lock_active = false;
+        if (cmd == "left") {
+            setMotors(spd, -spd);  // Verified: Left forward, Right reverse -> Pivot Left
+        } else if (cmd == "right") {
+            setMotors(-spd, spd);  // Verified: Left reverse, Right forward -> Pivot Right
+        } else if (cmd == "left_fwd") {
+            setMotors(spd, 0.0f);
+        } else if (cmd == "left_rev") {
+            setMotors(-spd, 0.0f);
+        } else if (cmd == "right_fwd") {
+            setMotors(0.0f, spd);
+        } else if (cmd == "right_rev") {
+            setMotors(0.0f, -spd);
+        } else {
+            stopMotors();
+        }
     }
 }
 
 // ------------------------------------------------------------------------------
-// MPU-6050 CLOSED-LOOP DEGREE TURNING
+// MPU-6050 CLOSED-LOOP DEGREE TURNING (Precision State Machine + Active Brake)
 // ------------------------------------------------------------------------------
 void startClosedLoopTurn(const String& dir, float degrees) {
     if (degrees <= 1.0f) return;
@@ -194,13 +211,16 @@ void startClosedLoopTurn(const String& dir, float degrees) {
     turn_target_degrees = degrees;
     turn_accumulated_degrees = 0.0f;
     turn_start_time_ms = millis();
-    turn_timeout_time_ms = (uint32_t)(degrees * 90 + 3000); // 3s baseline + 90ms/deg
+    turn_timeout_time_ms = (uint32_t)(degrees * 95 + 3500); // 3.5s baseline + 95ms/deg
+    turn_state = 1; // 1: Active turning phase
+    heading_lock_active = false;
 
-    float initial_spd = 0.65f;
+    // Controlled cruise speed (0.42) to cut angular kinetic momentum by >50%
+    float initial_spd = 0.42f;
     if (dir == "left") {
-        setMotors(-initial_spd, initial_spd);
-    } else {
         setMotors(initial_spd, -initial_spd);
+    } else {
+        setMotors(-initial_spd, initial_spd);
     }
     current_motion = "TURN_" + dir + "_" + String((int)degrees);
 }
@@ -208,35 +228,109 @@ void startClosedLoopTurn(const String& dir, float degrees) {
 void updateClosedLoopTurn(float gz_dps, float dt) {
     if (!is_turning_closed_loop) return;
 
-    // High-frequency integration of angular turn velocity
-    turn_accumulated_degrees += fabs(gz_dps) * dt;
+    uint32_t now = millis();
+    uint32_t elapsed = now - turn_start_time_ms;
 
-    float remaining = turn_target_degrees - turn_accumulated_degrees;
-    uint32_t elapsed = millis() - turn_start_time_ms;
-
-    // Check if target reached (with 1.5 deg inertia cushion) or timed out
-    if (remaining <= 1.5f || elapsed >= turn_timeout_time_ms) {
+    // Safety timeout check
+    if (elapsed >= turn_timeout_time_ms) {
         stopMotors();
         is_turning_closed_loop = false;
+        turn_state = 0;
+        heading_lock_target = yaw_deg;
         Serial.print("{\"t\":\"turn_done\",\"accum\":");
         Serial.print(turn_accumulated_degrees, 1);
-        Serial.println("}");
+        Serial.println(",\"timeout\":true}");
         return;
     }
 
-    // Dynamic deceleration ramp:
-    // When remaining > 25°: strong torque (65%) to overcome mud/grass friction
-    // When remaining <= 25°: smoothly ramp down to ~38% so it stops on a dime without overshoot
-    float spd = 0.65f;
-    if (remaining < 25.0f) {
-        spd = 0.38f + (remaining / 25.0f) * 0.27f;
-        spd = constrain(spd, 0.38f, 0.65f);
-    }
+    if (turn_state == 1) { // ACTIVE TURNING WITH DYNAMIC DECELERATION
+        // Integrate angular turn velocity
+        turn_accumulated_degrees += fabs(gz_dps) * dt;
+        float remaining = turn_target_degrees - turn_accumulated_degrees;
 
-    if (turn_active_dir == "left") {
-        setMotors(-spd, spd);
-    } else {
-        setMotors(spd, -spd);
+        // Dynamic lead angle cutoff for active reverse brake
+        float lead_deg = (turn_target_degrees < 45.0f) ? 2.0f : 3.2f;
+
+        if (remaining <= lead_deg) {
+            // PHASE 2: ACTIVE DYNAMIC REVERSE BRAKE PULSE (Reverse Plug)
+            // Fire short reverse pulse (45ms) to immediately cancel motor gearbox inertia
+            turn_state = 2;
+            turn_brake_time_ms = now;
+            float brake_pwr = 0.32f;
+            if (turn_active_dir == "left") {
+                setMotors(-brake_pwr, brake_pwr); // Reverse torque
+            } else {
+                setMotors(brake_pwr, -brake_pwr); // Reverse torque
+            }
+            return;
+        }
+
+        // DYNAMIC DECELERATION PROFILE:
+        // Cruise (> 35° remaining): 0.42
+        // Ramp down (12° to 35° remaining): smooth linear deceleration to 0.27
+        // Final approach (<= 12° remaining): crawl at 0.27 to eliminate momentum
+        float spd = 0.42f;
+        if (remaining <= 12.0f) {
+            spd = 0.27f;
+        } else if (remaining <= 35.0f) {
+            float ratio = (remaining - 12.0f) / 23.0f;
+            spd = 0.27f + ratio * (0.42f - 0.27f);
+        }
+
+        if (turn_active_dir == "left") {
+            setMotors(spd, -spd);
+        } else {
+            setMotors(-spd, spd);
+        }
+    }
+    else if (turn_state == 2) { // ACTIVE REVERSE BRAKE PHASE (45ms pulse)
+        if (now - turn_brake_time_ms >= 45) {
+            setMotors(0.0f, 0.0f); // Cut motor power completely
+            turn_state = 3;        // Transition to settle phase
+            turn_brake_time_ms = now;
+        }
+    }
+    else if (turn_state == 3) { // SETTLE PHASE (120ms to allow physical chassis to rest)
+        if (now - turn_brake_time_ms >= 120) {
+            float final_err = turn_target_degrees - turn_accumulated_degrees;
+            // If under-turned by > 2.5 degrees, give a tiny 50ms crawl nudge
+            if (final_err > 2.5f) {
+                turn_state = 4;
+                turn_brake_time_ms = now;
+                float nudge_spd = 0.27f;
+                if (turn_active_dir == "left") {
+                    setMotors(nudge_spd, -nudge_spd);
+                } else {
+                    setMotors(-nudge_spd, nudge_spd);
+                }
+                return;
+            }
+
+            // Turn successfully finished
+            stopMotors();
+            is_turning_closed_loop = false;
+            turn_state = 0;
+            heading_lock_target = yaw_deg; // Store new reference heading for subsequent straight driving
+            Serial.print("{\"t\":\"turn_done\",\"accum\":");
+            Serial.print(turn_accumulated_degrees, 1);
+            Serial.print(",\"target\":");
+            Serial.print(turn_target_degrees, 1);
+            Serial.println("}");
+        }
+    }
+    else if (turn_state == 4) { // MICRO-NUDGE PHASE (50ms crawl)
+        turn_accumulated_degrees += fabs(gz_dps) * dt;
+        if (now - turn_brake_time_ms >= 50) {
+            stopMotors();
+            is_turning_closed_loop = false;
+            turn_state = 0;
+            heading_lock_target = yaw_deg;
+            Serial.print("{\"t\":\"turn_done\",\"accum\":");
+            Serial.print(turn_accumulated_degrees, 1);
+            Serial.print(",\"target\":");
+            Serial.print(turn_target_degrees, 1);
+            Serial.println("}");
+        }
     }
 }
 
@@ -340,6 +434,34 @@ void mpuUpdate() {
     if (is_turning_closed_loop) {
         updateClosedLoopTurn(gz_dps, dt);
     }
+    // Straight-Line Gyro Heading Lock (Compass Hold)
+    else if (heading_lock_active && mpu_ok) {
+        float err = yaw_deg - heading_lock_target;
+        // Normalize error to [-180, +180]
+        while (err > 180.0f) err -= 360.0f;
+        while (err < -180.0f) err += 360.0f;
+
+        // Deadband filter: ignore sub-0.5° mechanical noise
+        if (fabs(err) < 0.5f) {
+            err = 0.0f;
+        }
+
+        float trim = err * HEADING_KP;
+        trim = constrain(trim, -MAX_STEER_TRIM, MAX_STEER_TRIM);
+
+        float base_spd = current_speed;
+        if (current_motion == "forward") {
+            // Veering left (yaw increases, err > 0): steer right by boosting left, slowing right
+            float l_spd = constrain(base_spd + trim, 0.20f, 1.0f);
+            float r_spd = constrain(base_spd - trim, 0.20f, 1.0f);
+            setMotors(l_spd, r_spd);
+        } else if (current_motion == "backward") {
+            // Reverse drive trim (inverted steering)
+            float l_spd = constrain(-base_spd - trim, -1.0f, -0.20f);
+            float r_spd = constrain(-base_spd + trim, -1.0f, -0.20f);
+            setMotors(l_spd, r_spd);
+        }
+    }
 }
 
 // ------------------------------------------------------------------------------
@@ -353,6 +475,7 @@ void processSerial() {
 
         if (line.indexOf("\"c\":\"ry\"") != -1 || line.indexOf("\"c\": \"ry\"") != -1) {
             yaw_deg = 0.0f;
+            heading_lock_target = 0.0f;
             Serial.println("{\"t\":\"ack\",\"cmd\":\"ry\"}");
         } else if (line.indexOf("\"c\":\"s\"") != -1 || line.indexOf("\"c\": \"s\"") != -1) {
             stopMotors();
@@ -363,8 +486,22 @@ void processSerial() {
             if (l_idx != -1 && r_idx != -1) {
                 float l = line.substring(l_idx + 4).toFloat();
                 float r = line.substring(r_idx + 4).toFloat();
-                setMotors(l, r);
+                // If both motors are commanded equally (forward/backward drive), engage gyro heading lock!
+                if (fabs(l - r) < 0.05f && fabs(l) > 0.15f) {
+                    current_speed = fabs(l);
+                    current_motion = (l > 0) ? "forward" : "backward";
+                    heading_lock_target = yaw_deg;
+                    heading_lock_active = heading_lock_enabled && mpu_ok;
+                    setMotors(l, r);
+                } else {
+                    heading_lock_active = false;
+                    setMotors(l, r);
+                }
             }
+        } else if (line.indexOf("\"c\":\"f\"") != -1 || line.indexOf("\"c\": \"f\"") != -1) {
+            applyCommand("forward");
+        } else if (line.indexOf("\"c\":\"b\"") != -1 || line.indexOf("\"c\": \"b\"") != -1) {
+            applyCommand("backward");
         } else if (line.indexOf("\"c\":\"t\"") != -1 || line.indexOf("\"c\": \"t\"") != -1) {
             String dir = "left";
             if (line.indexOf("\"right\"") != -1) dir = "right";
@@ -506,10 +643,11 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     <div id="evalDetail" style="font-size:12px; color:#c9d1d9;">Connecting to Raspberry Pi vision model…</div>
   </div>
 
-  <!-- MOTOR STATUS -->
+  <!-- MOTOR & HEADING LOCK STATUS -->
   <div class="status-card">
     <div>Motion: <span id="lblMotion" class="status-val">STOP</span></div>
     <div>Speed: <span id="lblSpd" class="status-val">75%</span></div>
+    <div>Gyro Lock: <span id="lblLock" class="status-val" style="color:#8b949e;">STANDBY</span></div>
   </div>
 
   <!-- MPU-6050 HEADING & CLOSED-LOOP 90° TURN CARD -->
@@ -715,6 +853,16 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
           if (data.turning) {
             document.getElementById('lblMotion').textContent = "TURNING (" + (data.accum ? data.accum.toFixed(0) : "0") + "°)";
           }
+          const lockEl = document.getElementById('lblLock');
+          if (lockEl) {
+            if (data.locked) {
+              lockEl.textContent = "LOCKED (" + (data.target_yaw != null ? data.target_yaw.toFixed(1) : "0.0") + "°)";
+              lockEl.style.color = "#3fb950";
+            } else {
+              lockEl.textContent = "STANDBY";
+              lockEl.style.color = "#8b949e";
+            }
+          }
           if (data.stations != null) {
             const stTxt = document.getElementById('lblStations');
             if (stTxt) {
@@ -776,6 +924,8 @@ void handleTelemetry() {
     json += "\"mpu_ok\":" + String(mpu_ok ? "true" : "false") + ",";
     json += "\"turning\":" + String(is_turning_closed_loop ? "true" : "false") + ",";
     json += "\"accum\":" + String(turn_accumulated_degrees, 1) + ",";
+    json += "\"locked\":" + String(heading_lock_active ? "true" : "false") + ",";
+    json += "\"target_yaw\":" + String(heading_lock_target, 1) + ",";
     json += "\"motion\":\"" + current_motion + "\",";
     json += "\"speed\":" + String(current_speed, 2) + ",";
     json += "\"stations\":" + String(WiFi.softAPgetStationNum());
@@ -796,6 +946,10 @@ void handleCmd() {
             startClosedLoopTurn(dir, deg);
         } else if (act == "reset_yaw") {
             yaw_deg = 0.0f;
+            heading_lock_target = 0.0f;
+        } else if (act == "toggle_lock") {
+            heading_lock_enabled = !heading_lock_enabled;
+            if (!heading_lock_enabled) heading_lock_active = false;
         } else {
             is_turning_closed_loop = false;
             applyCommand(act);
