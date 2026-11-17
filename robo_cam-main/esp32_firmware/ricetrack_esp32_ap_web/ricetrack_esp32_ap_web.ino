@@ -253,18 +253,27 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
   <!-- RASPBERRY PI LIVE CAMERA -->
   <div class="cam-card">
     <div class="cam-header">
-      <span>📷 Live Camera (<span id="txtPiIp">192.168.4.2</span>)</span>
+      <span>📷 Live Camera</span>
       <span id="camStatus" style="color:#e3b341; font-weight:bold;">Connecting…</span>
     </div>
+
+    <!-- PI ADDRESS & AUTO-FIND BAR -->
+    <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center; background:#21262d; padding:6px 8px; border-radius:6px; flex-wrap:wrap;">
+      <span style="font-size:12px; color:#8b949e;">Pi Host:</span>
+      <input id="inpPiHost" type="text" value="192.168.4.50:8000" style="background:#0d1117; color:#58a6ff; border:1px solid #30363d; border-radius:4px; padding:3px 6px; width:135px; font-size:12px; font-weight:bold;">
+      <button onclick="applyPiHost()" style="background:#238636; color:#fff; border:none; border-radius:4px; padding:4px 10px; font-size:12px; font-weight:bold; cursor:pointer;">Connect</button>
+      <button onclick="autoScanPi()" style="background:#1f6feb; color:#fff; border:none; border-radius:4px; padding:4px 8px; font-size:11px; font-weight:600; cursor:pointer;">🔍 Auto-Find</button>
+    </div>
+
     <div class="cam-box">
       <img id="camStream" 
-           src="http://192.168.4.2:8000/api/video_feed"
+           src="http://192.168.4.50:8000/api/video_feed"
            onload="onCamConnected()"
            onerror="onCamError()">
     </div>
     <div class="cam-overlay-btn">
       <button class="btn-action" onclick="captureEvaluate()">📸 Capture &amp; Evaluate Crop</button>
-      <a id="btnFullDash" href="http://192.168.4.2:8000" target="_blank" class="btn-secondary">📊 Full Dashboard</a>
+      <a id="btnFullDash" href="http://192.168.4.50:8000" target="_blank" class="btn-secondary">📊 Full Dashboard</a>
     </div>
   </div>
 
@@ -316,16 +325,69 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
   <script>
     let isContinuous = true;
     let curSpeed = 0.75;
-    let piIp = "192.168.4.2";
+    let piHost = localStorage.getItem("pi_host") || "192.168.4.50:8000";
+
+    const candidateHosts = [
+      "192.168.4.50:8000",
+      "192.168.4.2:8000",
+      "192.168.4.3:8000",
+      "192.168.4.4:8000",
+      "192.168.4.50:8001",
+      "192.168.4.2:8001",
+      "192.168.4.3:8001"
+    ];
+
+    window.applyPiHost = (newHost) => {
+      if (newHost) {
+        piHost = newHost;
+      } else {
+        const inp = document.getElementById('inpPiHost');
+        if (inp && inp.value.trim()) {
+          piHost = inp.value.trim();
+        }
+      }
+      localStorage.setItem("pi_host", piHost);
+      const inp = document.getElementById('inpPiHost');
+      if (inp) inp.value = piHost;
+      const lnk = document.getElementById('btnFullDash');
+      if (lnk) lnk.href = "http://" + piHost;
+      document.getElementById('camStatus').textContent = "Connecting…";
+      document.getElementById('camStatus').style.color = "#e3b341";
+      document.getElementById('camStream').src = "http://" + piHost + "/api/video_feed?t=" + Date.now();
+    };
 
     window.onCamConnected = () => {
-      document.getElementById('camStatus').textContent = "ONLINE (Pi 4B)";
+      document.getElementById('camStatus').textContent = "ONLINE (" + piHost + ")";
       document.getElementById('camStatus').style.color = "#2ea043";
     };
 
+    let autoFindDone = false;
     window.onCamError = () => {
-      document.getElementById('camStatus').textContent = "Pi Stream Standby";
+      document.getElementById('camStatus').textContent = "Standby / Checking…";
       document.getElementById('camStatus').style.color = "#e3b341";
+      if (!autoFindDone) {
+        autoFindDone = true;
+        setTimeout(window.autoScanPi, 1000);
+      }
+    };
+
+    window.autoScanPi = async () => {
+      document.getElementById('camStatus').textContent = "Auto-Finding Pi…";
+      document.getElementById('camStatus').style.color = "#58a6ff";
+      for (const host of candidateHosts) {
+        try {
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 900);
+          const res = await fetch("http://" + host + "/api/telemetry", { signal: ctrl.signal, mode: "cors" });
+          clearTimeout(tid);
+          if (res.ok) {
+            window.applyPiHost(host);
+            return;
+          }
+        } catch (e) {}
+      }
+      document.getElementById('camStatus').textContent = "Offline (Tap Auto-Find)";
+      document.getElementById('camStatus').style.color = "#da3633";
     };
 
     window.toggleContinuous = (val) => {
@@ -366,7 +428,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       detail.textContent = "Running IRRI Leaf Color Chart (LCC) & ExG model…";
 
       try {
-        const res = await fetch('http://' + piIp + ':8000/api/capture_evaluate', { method: 'POST' });
+        const res = await fetch('http://' + piHost + '/api/capture_evaluate', { method: 'POST' });
         const data = await res.json();
         if (data.ok || data.status || data.panel) {
           const panel = data.panel || data.status || "Evaluated";
@@ -380,9 +442,17 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         }
       } catch (err) {
         title.textContent = "⚠️ Connection Note";
-        detail.textContent = "Pi at http://" + piIp + ":8000. Check Pi is connected to ESP32 AP.";
+        detail.textContent = "Could not reach Pi at http://" + piHost + ". Check Pi address.";
       }
     };
+
+    // Initialize from localStorage if saved
+    window.addEventListener("DOMContentLoaded", () => {
+      const saved = localStorage.getItem("pi_host");
+      if (saved) {
+        window.applyPiHost(saved);
+      }
+    });
 
     // Keyboard support
     window.addEventListener("keydown", e => {

@@ -11,7 +11,7 @@
 
 SSID="RiceTrack-Rover"
 PASS="ricetrack123"
-PI_IP="192.168.4.2/24"
+PI_IP="192.168.4.50/24"
 GATEWAY="192.168.4.1"
 
 echo "========================================================"
@@ -48,7 +48,7 @@ sudo nmcli connection up "$SSID"
 echo ""
 echo "========================================================"
 echo "✅ Raspberry Pi is now connected to ESP32 AP!"
-echo "• Raspberry Pi IP: 192.168.4.2"
+echo "• Raspberry Pi IP: 192.168.4.50"
 echo "• ESP32 Dashboard: http://192.168.4.1"
-echo "• Camera Stream  : http://192.168.4.2:8000/api/video_feed"
+echo "• Camera Stream  : http://192.168.4.50:8000/api/video_feed"
 echo "========================================================"
