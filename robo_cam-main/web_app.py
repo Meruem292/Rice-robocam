@@ -19,6 +19,7 @@ from typing import Any
 
 import cv2
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 import numpy as np
@@ -661,6 +662,14 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="RiceTrack Web Application", version="1.0.0", lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 class DriveRequest(BaseModel):
     command: str
@@ -967,11 +976,15 @@ async def evaluate_upload(file: UploadFile = File(...)):
 
 
 @app.post("/api/capture_live")
+@app.post("/api/capture_evaluate")
 def capture_live():
     frame = hub.camera.capture_still()
     if frame is None:
-        return {"error": "No live camera frame available. Upload or select a sample photo."}
-    return _evaluate_and_persist_frame(frame)
+        return {"ok": False, "error": "No live camera frame available. Upload or select a sample photo."}
+    res = _evaluate_and_persist_frame(frame)
+    if isinstance(res, dict):
+        res["ok"] = "error" not in res
+    return res
 
 
 @app.get("/api/auto_path")

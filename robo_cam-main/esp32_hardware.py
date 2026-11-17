@@ -948,10 +948,10 @@ class ESP32BTS7960Motors(QObject):
             self._bridge.send_motor(-d_drive, -d_drive)
             speed = round(d_drive * self.MAX_SPEED_MPS, 1)
         elif cmd == "left":
-            self._bridge.send_motor(d_turn, -d_turn)
+            self._bridge.send_motor(-d_turn, d_turn)
             speed = round(d_turn * self.MAX_SPEED_MPS, 1)
         elif cmd == "right":
-            self._bridge.send_motor(-d_turn, d_turn)
+            self._bridge.send_motor(d_turn, -d_turn)
             speed = round(d_turn * self.MAX_SPEED_MPS, 1)
         else:
             cmd = "stop"
