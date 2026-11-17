@@ -11,13 +11,11 @@ import base64
 import csv
 from datetime import datetime
 import io
-import json
 import os
 from pathlib import Path
 import threading
 import time
 from typing import Any
-import urllib.request
 
 import cv2
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
@@ -334,11 +332,7 @@ class WebHardwareHub:
                     "lab_b": res.lab_b,
                     "hue_method": "median",
                     "segmentation_v_min": 12,
-                    "gps": (
-                        f"{self.lat:.5f}, {self.lon:.5f}"
-                        if self.gps_state == "fix"
-                        else f"{self._sim_lat:.5f}, {self._sim_lon:.5f}"
-                    ),
+                    "gps": f"{self._sim_lat:.5f}, {self._sim_lon:.5f}",
                 }
             )
             return rec_id
@@ -356,11 +350,7 @@ class WebHardwareHub:
             self.instructed_state = self._initial_instructed_state()
             self.instructed_state["active"] = True
             self.instructed_state["total_steps"] = len(steps)
-            self.instructed_state["start_gps"] = (
-                f"{self.lat:.5f}, {self.lon:.5f}"
-                if self.gps_state == "fix"
-                else "MPU Guidance Active (GPS Standby)"
-            )
+            self.instructed_state["start_gps"] = f"{self.lat:.5f}, {self.lon:.5f}"
             self.instructed_thread = threading.Thread(
                 target=self._instructed_worker, args=(steps,), daemon=True
             )
@@ -380,49 +370,68 @@ class WebHardwareHub:
             self.speed = 0.0
             return {"ok": True, "active": False, "reason": reason}
 
-    def _execute_turn(self, turn_dir: str, target_degrees: float = 90.0, timeout_s: float = 6.0) -> bool:
-        """Rotate rover in turn_dir until MPU-6050 yaw changes by target_degrees."""
+    def _send_esp32_cmd(self, act: str, spd: float | None = None, turn_dir: str | None = None, deg: float | None = None):
+        """Dispatch commands to ESP32 over Serial bridge and/or Wi-Fi AP."""
+        # 1. Serial USB bridge
+        if act == "stop":
+            self.motors.execute("stop")
+        elif act in ("forward", "backward", "left", "right"):
+            self.motors.execute(act)
+        elif act == "turn_deg" and turn_dir and deg:
+            self.motors._bridge._send_json({"c": "t", "dir": turn_dir, "deg": deg})
+
+        # 2. Wi-Fi HTTP bridge failover (if ESP32 AP is active at 192.168.4.1)
+        def _bg_post():
+            try:
+                import urllib.request
+                q = f"act={act}"
+                if spd is not None:
+                    q += f"&spd={spd}"
+                if turn_dir:
+                    q += f"&dir={turn_dir}"
+                if deg is not None:
+                    q += f"&deg={deg}"
+                urllib.request.urlopen(f"http://192.168.4.1/cmd?{q}", timeout=0.8)
+            except Exception:
+                pass
+        threading.Thread(target=_bg_post, daemon=True).start()
+
+    def _execute_turn(self, turn_dir: str, target_degrees: float = 90.0, timeout_s: float = 8.0) -> bool:
+        """Rotate rover in turn_dir until MPU-6050 yaw changes by target_degrees with closed-loop precision."""
         turn_dir = turn_dir.lower()
         if turn_dir not in ("left", "right"):
             return True
 
+        # Instruct ESP32 hardware closed-loop turn controller
+        self._send_esp32_cmd("turn_deg", turn_dir=turn_dir, deg=target_degrees)
+        self.motor_cmd = f"turn_{turn_dir}"
+        self.speed = 0.55
+
         start_yaw = self.imu.yaw
-
-        # Dispatch closed-loop MPU turn command directly to ESP32 AP
-        try:
-            threading.Thread(
-                target=lambda: urllib.request.urlopen(
-                    f"http://192.168.4.1/cmd?act=turn&dir={turn_dir}&deg={target_degrees}",
-                    timeout=0.4,
-                ),
-                daemon=True,
-            ).start()
-        except Exception:
-            pass
-
-        self.motors.execute(turn_dir)
-        self.motor_cmd = turn_dir
-        self.speed = self.motors._current_speed
-
         t0 = time.monotonic()
         actual_timeout = timeout_s if target_degrees <= 90.0 else timeout_s * 1.8
 
         while time.monotonic() - t0 < actual_timeout:
             if not self.instructed_active or not self._running:
-                self.motors.execute("stop")
+                self._send_esp32_cmd("stop")
                 return False
+
             cur_yaw = self.imu.yaw
             delta = abs(cur_yaw - start_yaw)
+            if delta > 180.0:
+                delta = abs(delta - 360.0)
+
             self.instructed_state["current_yaw"] = round(cur_yaw, 1)
             self.instructed_state["target_yaw"] = round(target_degrees, 1)
             self.instructed_state["phase_detail"] = (
-                f"Turning {turn_dir.capitalize()}: {delta:.1f}° / {target_degrees:.0f}° (MPU-6050)"
+                f"Turning {turn_dir.capitalize()}: {delta:.1f}° / {target_degrees:.0f}° (MPU-6050 Heading)"
             )
-            if delta >= (target_degrees - 2.5):
+
+            if delta >= (target_degrees - 2.0):
                 break
             time.sleep(0.04)
 
-        self.motors.execute("stop")
+        self._send_esp32_cmd("stop")
         self.motor_cmd = "stop"
         self.speed = 0.0
         time.sleep(0.35)
@@ -453,9 +462,9 @@ class WebHardwareHub:
                     self.instructed_state["target_s"] = target_s
                     self.instructed_state["distance_m"] = dist
 
-                    self.motors.execute("forward")
+                    self._send_esp32_cmd("forward", spd=0.75)
                     self.motor_cmd = "forward"
-                    self.speed = self.motors._current_speed
+                    self.speed = self.motors._current_speed or 0.75
 
                     t0 = time.monotonic()
                     while time.monotonic() - t0 < target_s:
@@ -468,7 +477,7 @@ class WebHardwareHub:
                         )
                         time.sleep(0.1)
 
-                    self.motors.execute("stop")
+                    self._send_esp32_cmd("stop")
                     self.motor_cmd = "stop"
                     self.speed = 0.0
                     time.sleep(0.3)
@@ -523,9 +532,9 @@ class WebHardwareHub:
                             r_dur = r_dist * sec_per_m
                             self.instructed_state["phase_detail"] = f"Retracing Leg {r_idx + 1}: {r_dist:.1f}m back to waypoint"
 
-                            self.motors.execute("forward")
+                            self._send_esp32_cmd("forward", spd=0.75)
                             self.motor_cmd = "forward"
-                            self.speed = self.motors._current_speed
+                            self.speed = self.motors._current_speed or 0.75
 
                             t_r = time.monotonic()
                             while time.monotonic() - t_r < r_dur:
@@ -533,7 +542,7 @@ class WebHardwareHub:
                                     break
                                 time.sleep(0.1)
 
-                            self.motors.execute("stop")
+                            self._send_esp32_cmd("stop")
                             self.motor_cmd = "stop"
                             self.speed = 0.0
                             time.sleep(0.3)
@@ -567,22 +576,10 @@ class WebHardwareHub:
         st["sec_per_meter"] = float(STANDARDS.get("sec_per_meter", 3.0))
         return st
 
-    def _detect_wlan_ip(self) -> str | None:
-        """Detect local IP on the ESP32 Wi-Fi subnet (192.168.4.x)."""
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("192.168.4.1", 80))
-            ip = s.getsockname()[0]
-            s.close()
-            return ip
-        except Exception:
-            return None
-
     def _loop(self):
         last_tick = time.monotonic()
         last_imu_retry = 0.0
         last_gps_scan = 0.0
-        last_esp_http_poll = 0.0
         while self._running:
             now = time.monotonic()
 
@@ -592,34 +589,6 @@ class WebHardwareHub:
                     last_imu_retry = now
                 try:
                     self.imu._poll()
-                except Exception:
-                    pass
-
-            # 1b. Sync Telemetry & send Pi Heartbeat to ESP32 AP over Wi-Fi (MPU-6050 Yaw & GPS Geotag)
-            if (now - last_esp_http_poll) >= 0.15:
-                last_esp_http_poll = now
-                try:
-                    if not hasattr(self, "_cached_wlan_ip") or (now - getattr(self, "_last_ip_check", 0)) > 4.0:
-                        self._last_ip_check = now
-                        self._cached_wlan_ip = self._detect_wlan_ip()
-
-                    ip_param = f"&ip={self._cached_wlan_ip}" if self._cached_wlan_ip else ""
-                    url = f"http://192.168.4.1/telemetry?src=pi&port=8000{ip_param}"
-                    req = urllib.request.Request(url, headers={"User-Agent": "RiceTrackPi"})
-                    with urllib.request.urlopen(req, timeout=0.20) as resp:
-                        t_data = json.loads(resp.read().decode("utf-8"))
-                        if "yaw" in t_data:
-                            self.yaw = round(float(t_data["yaw"]), 1)
-                            self.roll = round(float(t_data.get("roll", 0.0)), 1)
-                            self.pitch = round(float(t_data.get("pitch", 0.0)), 1)
-                            self.imu_ok = bool(t_data.get("mpu_ok", False))
-                            if hasattr(self.imu, "_bridge"):
-                                self.imu._bridge._current_yaw = self.yaw
-                        if t_data.get("gps_status") == "fix":
-                            self.gps_state = "fix"
-                            self.lat = float(t_data.get("gps_lat", self.lat))
-                            self.lon = float(t_data.get("gps_lon", self.lon))
-                            self.sats = int(t_data.get("gps_sats", 0))
                 except Exception:
                     pass
 
@@ -1282,28 +1251,16 @@ if __name__ == "__main__":
     host = os.environ.get("RICETRACK_HOST", "0.0.0.0")
     port = int(os.environ.get("RICETRACK_PORT", "8000"))
 
-    # Check if port is already bound by another process (e.g. background ricetrack.service)
-    is_busy = False
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
-            sock.bind((host, port))
-        except OSError:
-            is_busy = True
-
-    if is_busy:
-        print("\n" + "=" * 66)
-        print(f"⚠️  RiceTrack is ALREADY active on http://localhost:{port} !")
-        print(f"   (Background service or another instance currently owns the camera)")
-        print(f"👉 Connecting browser to live service: http://localhost:{port}")
-        print(f"👉 To stop background service: sudo systemctl stop ricetrack.service")
-        print("=" * 66 + "\n")
-        try:
-            if os.name == "nt" or bool(os.environ.get("DISPLAY")):
-                webbrowser.open(f"http://localhost:{port}")
-        except Exception:
-            pass
-        sys.exit(0)
+    # Find the first available port starting at 8000 so Errno 10048 never occurs
+    for candidate_port in range(port, port + 20):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                sock.bind((host, candidate_port))
+                port = candidate_port
+                break
+            except OSError:
+                continue
 
     url = f"http://localhost:{port}"
     print(f"RiceTrack Web App running at {url} (LAN: http://{host}:{port})")
