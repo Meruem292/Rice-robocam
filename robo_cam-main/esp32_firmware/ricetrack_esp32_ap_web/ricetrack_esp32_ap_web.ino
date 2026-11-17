@@ -98,6 +98,12 @@ uint32_t last_imu_tx_ms = 0;
 uint32_t last_gps_tx_ms = 0;
 String serial_rx_buf = "";
 
+// Raspberry Pi Auto-Discovery State
+String pi_ip_address = "";
+int pi_web_port = 8000;
+uint32_t pi_last_heartbeat_ms = 0;
+bool pi_online = false;
+
 // Forward declarations
 void setMotors(float l, float r);
 void stopMotors();
@@ -109,6 +115,7 @@ void mpuUpdate();
 void gpsPoll();
 void parseNmeaLine(String line);
 double parseNmeaCoord(String raw, String dir);
+void handlePiHeartbeat();
 
 // ------------------------------------------------------------------------------
 // PWM MOTOR CONTROL
@@ -586,20 +593,26 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
     <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center; background:#21262d; padding:6px 8px; border-radius:6px; flex-wrap:wrap;">
       <span style="font-size:12px; color:#8b949e;">Pi Host:</span>
-      <input id="inpPiHost" type="text" value="192.168.4.50:8000" style="background:#0d1117; color:#58a6ff; border:1px solid #30363d; border-radius:4px; padding:3px 6px; width:135px; font-size:12px; font-weight:bold;">
+      <input id="inpPiHost" type="text" value="192.168.4.2:8000" style="background:#0d1117; color:#58a6ff; border:1px solid #30363d; border-radius:4px; padding:3px 6px; width:135px; font-size:12px; font-weight:bold;">
       <button onclick="applyPiHost()" style="background:#238636; color:#fff; border:none; border-radius:4px; padding:4px 10px; font-size:12px; font-weight:bold; cursor:pointer;">Connect</button>
       <button onclick="autoScanPi()" style="background:#1f6feb; color:#fff; border:none; border-radius:4px; padding:4px 8px; font-size:11px; font-weight:600; cursor:pointer;">🔍 Auto-Find</button>
     </div>
 
+    <div id="piOfflineNotice" style="display:none; background:#2d1b00; border:1px solid #9e6a03; border-radius:6px; padding:6px 10px; margin-bottom:8px; font-size:11px; color:#f0883e; text-align:left;">
+      ⚠️ <b>Raspberry Pi not yet detected on AP.</b><br>
+      • On Pi, verify Wi-Fi is connected to <b>RiceTrack-Rover</b> (run <code>./connect_to_esp32_ap.sh</code>)<br>
+      • Ensure <code>web_app.py</code> is running on port 8000.
+    </div>
+
     <div class="cam-box">
       <img id="camStream" 
-           src="http://192.168.4.50:8000/api/video_feed"
+           src="http://192.168.4.2:8000/api/video_feed"
            onload="onCamConnected()"
            onerror="onCamError()">
     </div>
     <div class="cam-overlay-btn">
       <button class="btn-action" onclick="captureEvaluate()">📸 Capture &amp; Geotag Sample</button>
-      <a id="btnFullDash" href="http://192.168.4.50:8000" target="_blank" class="btn-secondary">📊 Full Dashboard</a>
+      <a id="btnFullDash" href="http://192.168.4.2:8000" target="_blank" class="btn-secondary">📊 Full Dashboard</a>
     </div>
   </div>
 
@@ -673,16 +686,17 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
   <script>
     let isContinuous = true;
     let curSpeed = 0.75;
-    let piHost = localStorage.getItem("pi_host") || "192.168.4.50:8000";
+    let piHost = localStorage.getItem("pi_host") || "192.168.4.2:8000";
+    let camConnected = false;
+    let autoFindDone = false;
+    let missionActive = false;
 
     const candidateHosts = [
-      "192.168.4.50:8000",
       "192.168.4.2:8000",
       "192.168.4.3:8000",
+      "192.168.4.50:8000",
       "192.168.4.4:8000",
-      "192.168.4.50:8001",
-      "192.168.4.2:8001",
-      "192.168.4.3:8001"
+      "192.168.4.5:8000"
     ];
 
     window.applyPiHost = (newHost) => {
@@ -705,17 +719,19 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     };
 
     window.onCamConnected = () => {
+      camConnected = true;
       document.getElementById('camStatus').textContent = "ONLINE (" + piHost + ")";
       document.getElementById('camStatus').style.color = "#2ea043";
+      document.getElementById('piOfflineNotice').style.display = "none";
     };
 
-    let autoFindDone = false;
     window.onCamError = () => {
+      camConnected = false;
       document.getElementById('camStatus').textContent = "Standby / Checking…";
       document.getElementById('camStatus').style.color = "#e3b341";
       if (!autoFindDone) {
         autoFindDone = true;
-        setTimeout(window.autoScanPi, 1000);
+        setTimeout(window.autoScanPi, 1200);
       }
     };
 
@@ -736,6 +752,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       }
       document.getElementById('camStatus').textContent = "Offline (Tap Auto-Find)";
       document.getElementById('camStatus').style.color = "#da3633";
+      document.getElementById('piOfflineNotice').style.display = "block";
     };
 
     window.toggleContinuous = (val) => {
@@ -821,6 +838,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         });
         const d = await res.json();
         if (d.ok) {
+          missionActive = true;
           statusChip.textContent = "ACTIVE";
           statusChip.style.background = "#238636";
         } else {
@@ -839,11 +857,39 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         await fetch('http://' + piHost + '/api/instructed_roving/stop', { method: 'POST' });
         document.getElementById('missionStatusChip').textContent = "ABORTED";
         document.getElementById('missionStatusChip').style.background = "#da3633";
+        missionActive = false;
         window.execCmd('stop');
       } catch (e) {}
     };
 
-    // TELEMETRY REFRESH POLLER (Heading & GPS)
+    const pollInstructedStatus = async () => {
+      if (!missionActive) return;
+      try {
+        const res = await fetch('http://' + piHost + '/api/instructed_roving/status');
+        const st = await res.json();
+        const statusChip = document.getElementById('missionStatusChip');
+        const detail = document.getElementById('missionDetail');
+        if (st.active) {
+          statusChip.textContent = (st.phase || "ACTIVE").toUpperCase();
+          statusChip.style.background = "#238636";
+          detail.style.display = "block";
+          detail.textContent = st.phase_detail || "Mission in progress...";
+        } else if (st.phase === "completed") {
+          statusChip.textContent = "COMPLETED";
+          statusChip.style.background = "#238636";
+          detail.style.display = "block";
+          detail.textContent = st.phase_detail || "Mission Completed!";
+          missionActive = false;
+        } else if (st.phase === "aborted") {
+          statusChip.textContent = "ABORTED";
+          statusChip.style.background = "#da3633";
+          missionActive = false;
+        }
+      } catch (e) {}
+    };
+    setInterval(pollInstructedStatus, 800);
+
+    // TELEMETRY REFRESH POLLER (Heading, GPS & Pi Handshake)
     const pollSensors = async () => {
       try {
         const res = await fetch('/telemetry');
@@ -858,8 +904,19 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
           document.getElementById('lblGps').textContent = "📍 " + data.gps_lat.toFixed(5) + ", " + data.gps_lon.toFixed(5) + " (" + data.gps_sats + " sats)";
           document.getElementById('lblGps').style.color = "#7ee787";
         } else {
-          document.getElementById('lblGps').textContent = "🧭 MPU Guidance Active (GPS Bypassed · Ready)";
+          document.getElementById('lblGps').textContent = "🧭 MPU Guidance Active (GPS Geotag Standby)";
           document.getElementById('lblGps').style.color = "#38bdf8";
+        }
+
+        // Auto-synchronize Pi Host if detected by ESP32 heartbeat
+        if (data.pi_online && data.pi_ip && data.pi_ip.length >= 7) {
+          const autoHost = data.pi_ip + ":" + (data.pi_port || 8000);
+          document.getElementById('piOfflineNotice').style.display = "none";
+          if (autoHost !== piHost || !camConnected) {
+            window.applyPiHost(autoHost);
+          }
+        } else if (!camConnected && data.pi_online === 0) {
+          document.getElementById('piOfflineNotice').style.display = "block";
         }
       } catch (e) {}
     };
@@ -870,6 +927,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       const saved = localStorage.getItem("pi_host");
       if (saved) {
         window.applyPiHost(saved);
+      }
+    });
       }
     });
 
@@ -927,7 +986,37 @@ void handleCmd() {
     server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 
+void handlePiHeartbeat() {
+    if (server.hasArg("ip") && server.arg("ip").length() >= 7) {
+        pi_ip_address = server.arg("ip");
+    } else {
+        pi_ip_address = server.client().remoteIP().toString();
+    }
+    if (server.hasArg("port")) {
+        pi_web_port = server.arg("port").toInt();
+    }
+    pi_last_heartbeat_ms = millis();
+    pi_online = true;
+    server.send(200, "application/json", "{\"status\":\"ok\",\"pi_ip\":\"" + pi_ip_address + "\"}");
+}
+
 void handleTelemetry() {
+    // If request originated from Raspberry Pi, register its IP immediately
+    if (server.hasArg("src") && server.arg("src") == "pi") {
+        if (server.hasArg("ip") && server.arg("ip").length() >= 7) {
+            pi_ip_address = server.arg("ip");
+        } else {
+            pi_ip_address = server.client().remoteIP().toString();
+        }
+        if (server.hasArg("port")) {
+            pi_web_port = server.arg("port").toInt();
+        }
+        pi_last_heartbeat_ms = millis();
+        pi_online = true;
+    } else {
+        pi_online = (pi_ip_address.length() >= 7 && (millis() - pi_last_heartbeat_ms < 5000));
+    }
+
     String json = "{";
     json += "\"yaw\":" + String(yaw_deg, 2) + ",";
     json += "\"pitch\":" + String(pitch_deg, 2) + ",";
@@ -940,7 +1029,10 @@ void handleTelemetry() {
     json += "\"motion\":\"" + current_motion + "\",";
     json += "\"speed\":" + String(current_speed, 2) + ",";
     json += "\"is_turning\":" + String(is_turning ? 1 : 0) + ",";
-    json += "\"target_deg\":" + String(turn_target_degrees, 1);
+    json += "\"target_deg\":" + String(turn_target_degrees, 1) + ",";
+    json += "\"pi_online\":" + String(pi_online ? 1 : 0) + ",";
+    json += "\"pi_ip\":\"" + pi_ip_address + "\",";
+    json += "\"pi_port\":" + String(pi_web_port);
     json += "}";
     server.send(200, "application/json", json);
 }
@@ -988,6 +1080,7 @@ void setup() {
     server.on("/", handleRoot);
     server.on("/cmd", handleCmd);
     server.on("/telemetry", handleTelemetry);
+    server.on("/pi_heartbeat", handlePiHeartbeat);
     server.begin();
 
     digitalWrite(PIN_LED, LOW);

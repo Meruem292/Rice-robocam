@@ -334,7 +334,11 @@ class WebHardwareHub:
                     "lab_b": res.lab_b,
                     "hue_method": "median",
                     "segmentation_v_min": 12,
-                    "gps": f"{self._sim_lat:.5f}, {self._sim_lon:.5f}",
+                    "gps": (
+                        f"{self.lat:.5f}, {self.lon:.5f}"
+                        if self.gps_state == "fix"
+                        else f"{self._sim_lat:.5f}, {self._sim_lon:.5f}"
+                    ),
                 }
             )
             return rec_id
@@ -352,7 +356,11 @@ class WebHardwareHub:
             self.instructed_state = self._initial_instructed_state()
             self.instructed_state["active"] = True
             self.instructed_state["total_steps"] = len(steps)
-            self.instructed_state["start_gps"] = f"{self.lat:.5f}, {self.lon:.5f}"
+            self.instructed_state["start_gps"] = (
+                f"{self.lat:.5f}, {self.lon:.5f}"
+                if self.gps_state == "fix"
+                else "MPU Guidance Active (GPS Standby)"
+            )
             self.instructed_thread = threading.Thread(
                 target=self._instructed_worker, args=(steps,), daemon=True
             )
@@ -559,6 +567,17 @@ class WebHardwareHub:
         st["sec_per_meter"] = float(STANDARDS.get("sec_per_meter", 3.0))
         return st
 
+    def _detect_wlan_ip(self) -> str | None:
+        """Detect local IP on the ESP32 Wi-Fi subnet (192.168.4.x)."""
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("192.168.4.1", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return None
+
     def _loop(self):
         last_tick = time.monotonic()
         last_imu_retry = 0.0
@@ -576,12 +595,18 @@ class WebHardwareHub:
                 except Exception:
                     pass
 
-            # 1b. Sync Telemetry from ESP32 AP over Wi-Fi (MPU-6050 Yaw & GPS Geotag)
+            # 1b. Sync Telemetry & send Pi Heartbeat to ESP32 AP over Wi-Fi (MPU-6050 Yaw & GPS Geotag)
             if (now - last_esp_http_poll) >= 0.15:
                 last_esp_http_poll = now
                 try:
-                    req = urllib.request.Request("http://192.168.4.1/telemetry", headers={"User-Agent": "RiceTrackPi"})
-                    with urllib.request.urlopen(req, timeout=0.15) as resp:
+                    if not hasattr(self, "_cached_wlan_ip") or (now - getattr(self, "_last_ip_check", 0)) > 4.0:
+                        self._last_ip_check = now
+                        self._cached_wlan_ip = self._detect_wlan_ip()
+
+                    ip_param = f"&ip={self._cached_wlan_ip}" if self._cached_wlan_ip else ""
+                    url = f"http://192.168.4.1/telemetry?src=pi&port=8000{ip_param}"
+                    req = urllib.request.Request(url, headers={"User-Agent": "RiceTrackPi"})
+                    with urllib.request.urlopen(req, timeout=0.20) as resp:
                         t_data = json.loads(resp.read().decode("utf-8"))
                         if "yaw" in t_data:
                             self.yaw = round(float(t_data["yaw"]), 1)
@@ -1257,16 +1282,28 @@ if __name__ == "__main__":
     host = os.environ.get("RICETRACK_HOST", "0.0.0.0")
     port = int(os.environ.get("RICETRACK_PORT", "8000"))
 
-    # Find the first available port starting at 8000 so Errno 10048 never occurs
-    for candidate_port in range(port, port + 20):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            try:
-                sock.bind((host, candidate_port))
-                port = candidate_port
-                break
-            except OSError:
-                continue
+    # Check if port is already bound by another process (e.g. background ricetrack.service)
+    is_busy = False
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((host, port))
+        except OSError:
+            is_busy = True
+
+    if is_busy:
+        print("\n" + "=" * 66)
+        print(f"⚠️  RiceTrack is ALREADY active on http://localhost:{port} !")
+        print(f"   (Background service or another instance currently owns the camera)")
+        print(f"👉 Connecting browser to live service: http://localhost:{port}")
+        print(f"👉 To stop background service: sudo systemctl stop ricetrack.service")
+        print("=" * 66 + "\n")
+        try:
+            if os.name == "nt" or bool(os.environ.get("DISPLAY")):
+                webbrowser.open(f"http://localhost:{port}")
+        except Exception:
+            pass
+        sys.exit(0)
 
     url = f"http://localhost:{port}"
     print(f"RiceTrack Web App running at {url} (LAN: http://{host}:{port})")

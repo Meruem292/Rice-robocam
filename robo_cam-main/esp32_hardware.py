@@ -982,6 +982,18 @@ class ESP32BTS7960Motors(QObject):
         self._current_speed = 0.0
         self.motor_state.emit("stop", 0.0, self.gpio_ready)
 
+        # Dispatch stop command to ESP32 AP over Wi-Fi
+        try:
+            threading.Thread(
+                target=lambda: urllib.request.urlopen(
+                    "http://192.168.4.1/cmd?act=stop",
+                    timeout=0.25,
+                ),
+                daemon=True,
+            ).start()
+        except Exception:
+            pass
+
 
 # ==============================================================================
 # 5. LIVE CAMERA PROVIDER (USB WEBCAM ON HOST PC VIA OPENCV)
