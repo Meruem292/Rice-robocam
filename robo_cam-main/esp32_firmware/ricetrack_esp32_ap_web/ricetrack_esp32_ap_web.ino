@@ -1,41 +1,56 @@
 /* ==============================================================================
- * RiceTrack Rover — Integrated ESP32 AP Controller + Raspberry Pi Camera Display
+ * RiceTrack Rover — Integrated ESP32 AP Controller + Camera & MPU Guidance
  * File: ricetrack_esp32_ap_web.ino
  * ==============================================================================
- * Architecture:
- * 1. ESP32 hosts its own high-speed Wi-Fi Access Point:
- *      SSID     : RiceTrack-Rover
- *      Password : ricetrack123
- *      IP       : 192.168.4.1
- * 2. Motor commands execute directly on the ESP32 (0ms latency, zero serial bugs!).
- * 3. Raspberry Pi connects to this Wi-Fi AP at 192.168.4.2.
- * 4. The ESP32 dashboard embeds the Raspberry Pi's live camera stream:
- *      http://192.168.4.2:8000/api/video_feed
- *    and provides one-click AI Crop Health Evaluation!
- *
- * Pinout:
- *   Left BTS7960:  RPWM -> GPIO 32, LPWM -> GPIO 33, R_EN -> GPIO 25, L_EN -> GPIO 26
- *   Right BTS7960: RPWM -> GPIO 18, LPWM -> GPIO 19, R_EN -> GPIO 27, L_EN -> GPIO 14
- *   Status LED:    GPIO 2
+ * Drivetrain & Sensor Architecture:
+ * 1. Dual BTS7960 Motor Drivers:
+ *      Left:  RPWM -> GPIO 32, LPWM -> GPIO 33, R_EN -> GPIO 25, L_EN -> GPIO 26
+ *      Right: RPWM -> GPIO 18, LPWM -> GPIO 19, R_EN -> GPIO 27, L_EN -> GPIO 14
+ * 2. MPU-6050 6-Axis IMU (I2C):
+ *      SDA -> GPIO 21, SCL -> GPIO 22 (400 kHz Fast-Mode I2C)
+ *      Calculates Yaw heading with bias calibration & gyro integration.
+ *      Drives Closed-Loop Precision Angle Turns (e.g. exact 90° & 180° turns).
+ * 3. NEO-6M GPS Module (UART2):
+ *      GPS TX -> ESP32 RX2 (GPIO 16), GPS RX -> ESP32 TX2 (GPIO 17) @ 9600 baud.
+ *      Dedicated to geotagging photo locations (not for steering).
+ * 4. Wi-Fi SoftAP:
+ *      SSID: RiceTrack-Rover | Password: ricetrack123 | IP: 192.168.4.1
+ *      Hosts responsive rover web UI, closed-loop turn controls, and embeds
+ *      Raspberry Pi camera stream & crop health analysis.
  * ============================================================================== */
 
 #include <WiFi.h>
 #include <WebServer.h>
+#include <Wire.h>
+#include <math.h>
 
 // ------------------------------------------------------------------------------
 // PIN DEFINITIONS
 // ------------------------------------------------------------------------------
+// Left BTS7960 Driver
 const int PIN_LEFT_RPWM  = 32;
 const int PIN_LEFT_LPWM  = 33;
 const int PIN_LEFT_R_EN  = 25;
 const int PIN_LEFT_L_EN  = 26;
 
+// Right BTS7960 Driver
 const int PIN_RIGHT_RPWM = 18;
 const int PIN_RIGHT_LPWM = 19;
 const int PIN_RIGHT_R_EN = 27;
 const int PIN_RIGHT_L_EN = 14;
 
+// Onboard Blue Status LED
 const int PIN_LED        = 2;
+
+// MPU-6050 IMU (I2C)
+const int PIN_I2C_SDA    = 21;
+const int PIN_I2C_SCL    = 22;
+const uint8_t MPU_ADDR   = 0x68;
+
+// NEO-6M GPS (UART2)
+const int PIN_GPS_RX     = 16;  // ESP32 RX2 <- GPS TX
+const int PIN_GPS_TX     = 17;  // ESP32 TX2 -> GPS RX
+const uint32_t GPS_BAUD  = 9600;
 
 // PWM Parameters
 const int PWM_FREQ       = 1000;  // 1 kHz
@@ -43,15 +58,60 @@ const int PWM_RESOLUTION = 10;    // 10-bit (0 - 1023)
 const int PWM_MAX        = 1023;
 
 WebServer server(80);
+HardwareSerial GPS_Serial(2);
 
-// State variables
-float current_speed = 0.75f;  // 75% default speed
+// ------------------------------------------------------------------------------
+// STATE VARIABLES
+// ------------------------------------------------------------------------------
+float current_speed = 0.75f;
 String current_motion = "STOP";
 float left_duty = 0.0f;
 float right_duty = 0.0f;
 
+// IMU / MPU-6050 State
+bool mpu_ok = false;
+float roll_deg = 0.0f;
+float pitch_deg = 0.0f;
+float yaw_deg = 0.0f;
+float gz_bias = 0.0f;
+float comp_roll = 0.0f;
+float comp_pitch = 0.0f;
+uint32_t last_imu_time_us = 0;
+
+// GPS State (Geotagging)
+String gps_status = "none";
+double gps_lat = 0.0;
+double gps_lon = 0.0;
+int gps_sats = 0;
+String nmea_buffer = "";
+
+// Closed-Loop Turn Controller (MPU-6050 Guidance)
+bool is_turning = false;
+String turn_direction = "none";  // "left" or "right"
+float turn_target_degrees = 90.0f;
+float turn_start_yaw = 0.0f;
+uint32_t turn_start_ms = 0;
+const uint32_t TURN_TIMEOUT_MS = 7000;
+
+// Serial & Telemetry Timers
+uint32_t last_imu_tx_ms = 0;
+uint32_t last_gps_tx_ms = 0;
+String serial_rx_buf = "";
+
+// Forward declarations
+void setMotors(float l, float r);
+void stopMotors();
+void applyCommand(const String& cmd);
+void startTurn(const String& dir, float deg);
+void updateTurn();
+bool mpuInit();
+void mpuUpdate();
+void gpsPoll();
+void parseNmeaLine(String line);
+double parseNmeaCoord(String raw, String dir);
+
 // ------------------------------------------------------------------------------
-// PWM CONTROL
+// PWM MOTOR CONTROL
 // ------------------------------------------------------------------------------
 void initPWM() {
     pinMode(PIN_LEFT_R_EN, OUTPUT);
@@ -131,6 +191,7 @@ void setMotors(float l, float r) {
 void stopMotors() {
     setMotors(0.0f, 0.0f);
     current_motion = "STOP";
+    is_turning = false;
 }
 
 void applyCommand(const String& cmd) {
@@ -159,6 +220,228 @@ void applyCommand(const String& cmd) {
 }
 
 // ------------------------------------------------------------------------------
+// CLOSED-LOOP MPU-6050 TARGET ANGLE ROTATION
+// ------------------------------------------------------------------------------
+void startTurn(const String& dir, float deg) {
+    turn_direction = dir;
+    turn_target_degrees = (deg > 3.0f) ? deg : 90.0f;
+    turn_start_yaw = yaw_deg;
+    turn_start_ms = millis();
+    is_turning = true;
+    current_motion = (dir == "left") ? "TURN_LEFT_MPU" : "TURN_RIGHT_MPU";
+}
+
+void updateTurn() {
+    if (!is_turning) return;
+
+    // Failsafe timeout
+    if (millis() - turn_start_ms > TURN_TIMEOUT_MS) {
+        stopMotors();
+        is_turning = false;
+        return;
+    }
+
+    float delta = fabs(yaw_deg - turn_start_yaw);
+    float remaining = turn_target_degrees - delta;
+
+    if (remaining <= 2.5f) {
+        // Target angle reached! Stop immediately with dynamic braking
+        stopMotors();
+        is_turning = false;
+    } else {
+        // Two-stage turn speed: Slow down (creep) near the target for precision
+        float spd = current_speed;
+        if (remaining < 22.0f) {
+            spd = constrain(current_speed * 0.55f, 0.38f, 0.58f);
+        }
+        if (turn_direction == "left") {
+            setMotors(-spd, spd);
+        } else {
+            setMotors(spd, -spd);
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------
+// MPU-6050 IMU ROUTINES (Native Wire.h)
+// ------------------------------------------------------------------------------
+bool mpuInit() {
+    Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 400000);
+    delay(25);
+
+    // Wake up MPU-6050
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(0x6B);
+    Wire.write(0x00);
+    if (Wire.endTransmission() != 0) {
+        return false;
+    }
+
+    // Accel +/- 4g
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(0x1C);
+    Wire.write(0x08);
+    Wire.endTransmission();
+
+    // Gyro +/- 500 deg/s
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(0x1B);
+    Wire.write(0x08);
+    Wire.endTransmission();
+
+    delay(20);
+    last_imu_time_us = micros();
+
+    // Calibrate Z-gyro bias over 60 stationary samples
+    long gz_sum = 0;
+    int samples = 0;
+    for (int i = 0; i < 60; i++) {
+        Wire.beginTransmission(MPU_ADDR);
+        Wire.write(0x47); // GYRO_ZOUT_H
+        if (Wire.endTransmission(false) == 0) {
+            if (Wire.requestFrom((uint16_t)MPU_ADDR, (uint8_t)2, (bool)true) == 2) {
+                int16_t gz_raw = (Wire.read() << 8) | Wire.read();
+                gz_sum += gz_raw;
+                samples++;
+            }
+        }
+        delay(3);
+    }
+    if (samples > 0) {
+        gz_bias = (float)gz_sum / (float)samples;
+    }
+    yaw_deg = 0.0f;
+    return true;
+}
+
+void mpuUpdate() {
+    if (!mpu_ok) return;
+
+    Wire.beginTransmission(MPU_ADDR);
+    Wire.write(0x3B);
+    if (Wire.endTransmission(false) != 0) {
+        mpu_ok = false;
+        return;
+    }
+
+    int n = Wire.requestFrom((uint16_t)MPU_ADDR, (uint8_t)14, (bool)true);
+    if (n < 14) return;
+
+    int16_t ax = (Wire.read() << 8) | Wire.read();
+    int16_t ay = (Wire.read() << 8) | Wire.read();
+    int16_t az = (Wire.read() << 8) | Wire.read();
+    Wire.read(); Wire.read(); // skip temp
+    int16_t gx = (Wire.read() << 8) | Wire.read();
+    int16_t gy = (Wire.read() << 8) | Wire.read();
+    int16_t gz = (Wire.read() << 8) | Wire.read();
+
+    float ax_g = (float)ax / 8192.0f;
+    float ay_g = (float)ay / 8192.0f;
+    float az_g = (float)az / 8192.0f;
+
+    float gx_dps = (float)gx / 65.5f;
+    float gy_dps = (float)gy / 65.5f;
+    float gz_dps = ((float)gz - gz_bias) / 65.5f;
+    if (fabs(gz_dps) < 0.25f) gz_dps = 0.0f; // Deadband filter
+
+    float accel_roll = atan2(ay_g, az_g) * 180.0f / M_PI;
+    float accel_pitch = atan2(-ax_g, sqrt(ay_g * ay_g + az_g * az_g)) * 180.0f / M_PI;
+
+    uint32_t now_us = micros();
+    float dt = (float)(now_us - last_imu_time_us) / 1000000.0f;
+    if (dt <= 0.0f || dt > 0.5f) dt = 0.05f;
+    last_imu_time_us = now_us;
+
+    comp_roll = 0.96f * (comp_roll + gx_dps * dt) + 0.04f * accel_roll;
+    comp_pitch = 0.96f * (comp_pitch + gy_dps * dt) + 0.04f * accel_pitch;
+    yaw_deg += gz_dps * dt;
+
+    roll_deg = comp_roll;
+    pitch_deg = comp_pitch;
+}
+
+// ------------------------------------------------------------------------------
+// NEO-6M GPS NMEA PARSER (Geotagging Only)
+// ------------------------------------------------------------------------------
+double parseNmeaCoord(String raw, String dir) {
+    if (raw.length() < 4) return 0.0;
+    int dot_idx = raw.indexOf('.');
+    if (dot_idx < 2) return 0.0;
+
+    int deg_len = (dot_idx == 4) ? 2 : 3;
+    double degrees = raw.substring(0, deg_len).toDouble();
+    double minutes = raw.substring(deg_len).toDouble();
+    double dec = degrees + (minutes / 60.0);
+    if (dir == "S" || dir == "W") dec = -dec;
+    return dec;
+}
+
+void parseNmeaLine(String line) {
+    if (line.startsWith("$GPRMC") || line.startsWith("$GNRMC")) {
+        int idx = 0;
+        String tokens[13];
+        int token_count = 0;
+        while (idx < line.length() && token_count < 13) {
+            int next_comma = line.indexOf(',', idx);
+            if (next_comma == -1) next_comma = line.indexOf('*', idx);
+            if (next_comma == -1) next_comma = line.length();
+            tokens[token_count++] = line.substring(idx, next_comma);
+            idx = next_comma + 1;
+        }
+
+        if (token_count >= 7) {
+            String status = tokens[2];
+            if (status == "A") {
+                gps_status = "fix";
+                gps_lat = parseNmeaCoord(tokens[3], tokens[4]);
+                gps_lon = parseNmeaCoord(tokens[5], tokens[6]);
+            } else {
+                gps_status = "none";
+            }
+        }
+    }
+    else if (line.startsWith("$GPGGA") || line.startsWith("$GNGGA")) {
+        int idx = 0;
+        String tokens[15];
+        int token_count = 0;
+        while (idx < line.length() && token_count < 15) {
+            int next_comma = line.indexOf(',', idx);
+            if (next_comma == -1) next_comma = line.indexOf('*', idx);
+            if (next_comma == -1) next_comma = line.length();
+            tokens[token_count++] = line.substring(idx, next_comma);
+            idx = next_comma + 1;
+        }
+
+        if (token_count >= 8) {
+            int quality = tokens[6].toInt();
+            gps_sats = tokens[7].toInt();
+            if (quality > 0) {
+                gps_status = "fix";
+                if (gps_lat == 0.0) gps_lat = parseNmeaCoord(tokens[2], tokens[3]);
+                if (gps_lon == 0.0) gps_lon = parseNmeaCoord(tokens[4], tokens[5]);
+            }
+        }
+    }
+}
+
+void gpsPoll() {
+    while (GPS_Serial.available()) {
+        char c = (char)GPS_Serial.read();
+        if (c == '\r') continue;
+        if (c == '\n') {
+            if (nmea_buffer.length() > 6) {
+                parseNmeaLine(nmea_buffer);
+            }
+            nmea_buffer = "";
+        } else {
+            if (nmea_buffer.length() < 120) {
+                nmea_buffer += c;
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------
 // HTML WEB PAGE (Stored in Flash Memory)
 // ------------------------------------------------------------------------------
 const char PAGE_HTML[] PROGMEM = R"rawliteral(
@@ -181,45 +464,39 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     .badge.orange { background: #9e6a03; color: #fff; }
     .badge.red { background: #da3633; color: #fff; }
 
-    /* CAMERA CARD */
-    .cam-card {
+    /* CARD STYLES */
+    .card {
       background: #161b22; border: 1px solid #30363d; border-radius: 10px;
-      padding: 8px; margin-bottom: 12px; text-align: left;
+      padding: 8px 10px; margin-bottom: 10px; text-align: left;
     }
-    .cam-header { display: flex; justify-content: space-between; font-size: 12px; color: #8b949e; margin-bottom: 6px; }
+    .card-title { font-size: 13px; font-weight: 700; color: #8b949e; margin-bottom: 6px; display: flex; justify-content: space-between; }
+
+    /* CAMERA BOX */
     .cam-box {
-      width: 100%; height: 240px; background: #000; border-radius: 6px;
+      width: 100%; height: 230px; background: #000; border-radius: 6px;
       display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;
     }
     .cam-box img { width: 100%; height: 100%; object-fit: contain; }
-    .cam-overlay-btn {
-      margin-top: 8px; display: flex; gap: 8px;
-    }
+    .cam-overlay-btn { margin-top: 8px; display: flex; gap: 8px; }
 
-    /* STATUS CARD */
-    .status-card {
-      background: #161b22; border: 1px solid #30363d; border-radius: 8px;
-      padding: 8px; margin-bottom: 10px; font-size: 13px; display: flex; justify-content: space-around;
+    /* SENSOR & TELEMETRY ROW */
+    .telemetry-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;
     }
-    .status-val { font-weight: bold; color: #58a6ff; }
+    .tele-item { background: #0d1117; padding: 6px 8px; border-radius: 6px; border: 1px solid #21262d; }
+    .tele-val { font-weight: bold; color: #58a6ff; font-size: 13px; }
 
-    /* EVAL RESULT CARD */
-    #evalBox {
-      display: none; background: #0f2d1e; border: 1px solid #2ea043; border-radius: 8px;
-      padding: 10px; margin-bottom: 12px; text-align: left; font-size: 13px; color: #7ee787;
-    }
-
-    /* BUTTONS & DPAD */
+    /* BUTTONS */
     .btn-group { display: flex; justify-content: center; gap: 6px; margin-bottom: 10px; }
     .spd-btn {
       background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px;
-      padding: 6px 12px; font-weight: bold; font-size: 13px; cursor: pointer; flex: 1;
+      padding: 6px 10px; font-weight: bold; font-size: 13px; cursor: pointer; flex: 1;
     }
     .spd-btn.active { background: #238636; border-color: #3fb950; color: #fff; }
 
-    .dpad-wrap { display: flex; justify-content: center; margin: 8px 0 12px; }
+    .dpad-wrap { display: flex; justify-content: center; margin: 6px 0 10px; }
     .dpad {
-      display: grid; grid-template-columns: 85px 85px 85px; grid-template-rows: 75px 75px 75px; gap: 8px;
+      display: grid; grid-template-columns: 85px 85px 85px; grid-template-rows: 70px 70px 70px; gap: 8px;
     }
     .btn {
       background: #21262d; color: #f0f6fc; border: 1px solid #30363d; border-radius: 12px;
@@ -230,9 +507,15 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     .btn-stop { background: #da3633; border-color: #f85149; font-size: 18px; }
     .btn-stop:active { background: #b62324; }
 
+    .btn-turn {
+      background: #1f2937; border: 1px solid #3b82f6; color: #60a5fa; border-radius: 8px;
+      padding: 8px 12px; font-weight: 700; font-size: 12px; cursor: pointer; flex: 1;
+    }
+    .btn-turn:active { background: #2563eb; color: #fff; }
+
     .btn-action {
       background: #238636; color: #fff; border: 1px solid #3fb950; border-radius: 6px;
-      padding: 10px 14px; font-weight: 700; font-size: 14px; cursor: pointer; flex: 1;
+      padding: 10px 14px; font-weight: 700; font-size: 13px; cursor: pointer; flex: 1;
     }
     .btn-action:active { background: #2ea043; }
 
@@ -241,23 +524,51 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       padding: 8px 12px; font-size: 12px; font-weight: 600; text-decoration: none; display: inline-block;
     }
 
-    .mode-wrap { margin-top: 8px; font-size: 13px; color: #8b949e; }
+    #evalBox {
+      display: none; background: #0f2d1e; border: 1px solid #2ea043; border-radius: 8px;
+      padding: 10px; margin-bottom: 10px; text-align: left; font-size: 13px; color: #7ee787;
+    }
+
+    .mission-box {
+      background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 10px; margin-top: 8px;
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <h2>🌾 RiceTrack Rover</h2>
-    <span id="badgeLink" class="badge green">ESP32 Direct Control</span>
+    <span id="badgeLink" class="badge green">ESP32 + MPU Guidance</span>
   </div>
 
-  <!-- RASPBERRY PI LIVE CAMERA -->
-  <div class="cam-card">
-    <div class="cam-header">
-      <span>📷 Live Camera</span>
+  <!-- SENSOR TELEMETRY: MPU-6050 & NEO-6M GPS -->
+  <div class="card">
+    <div class="card-title">
+      <span>🧭 Navigation Sensors</span>
+      <button onclick="resetYaw()" style="background:#30363d; color:#c9d1d9; border:none; border-radius:4px; padding:2px 8px; font-size:11px; cursor:pointer;">⟲ Zero Heading</button>
+    </div>
+    <div class="telemetry-grid">
+      <div class="tele-item">
+        <div style="color:#8b949e;">MPU-6050 Heading</div>
+        <div id="lblYaw" class="tele-val">0.0°</div>
+      </div>
+      <div class="tele-item">
+        <div style="color:#8b949e;">Motion State</div>
+        <div id="lblMotion" class="tele-val">STOP</div>
+      </div>
+      <div class="tele-item" style="grid-column: span 2;">
+        <div style="color:#8b949e;">📍 GPS Geotag (For Captures)</div>
+        <div id="lblGps" class="tele-val" style="font-size:12px; color:#7ee787;">Waiting for fix…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIVE CAMERA STREAM FROM PI -->
+  <div class="card">
+    <div class="card-title">
+      <span>📷 Live Camera Feed</span>
       <span id="camStatus" style="color:#e3b341; font-weight:bold;">Connecting…</span>
     </div>
 
-    <!-- PI ADDRESS & AUTO-FIND BAR -->
     <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center; background:#21262d; padding:6px 8px; border-radius:6px; flex-wrap:wrap;">
       <span style="font-size:12px; color:#8b949e;">Pi Host:</span>
       <input id="inpPiHost" type="text" value="192.168.4.50:8000" style="background:#0d1117; color:#58a6ff; border:1px solid #30363d; border-radius:4px; padding:3px 6px; width:135px; font-size:12px; font-weight:bold;">
@@ -272,7 +583,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
            onerror="onCamError()">
     </div>
     <div class="cam-overlay-btn">
-      <button class="btn-action" onclick="captureEvaluate()">📸 Capture &amp; Evaluate Crop</button>
+      <button class="btn-action" onclick="captureEvaluate()">📸 Capture &amp; Geotag Sample</button>
       <a id="btnFullDash" href="http://192.168.4.50:8000" target="_blank" class="btn-secondary">📊 Full Dashboard</a>
     </div>
   </div>
@@ -281,12 +592,6 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
   <div id="evalBox">
     <div style="font-weight:bold; font-size:14px; margin-bottom:4px;" id="evalTitle">🌱 Crop Health: Evaluating…</div>
     <div id="evalDetail" style="font-size:12px; color:#c9d1d9;">Connecting to Raspberry Pi vision model…</div>
-  </div>
-
-  <!-- MOTOR STATUS -->
-  <div class="status-card">
-    <div>Motion: <span id="lblMotion" class="status-val">STOP</span></div>
-    <div>Speed: <span id="lblSpd" class="status-val">75%</span></div>
   </div>
 
   <!-- SPEED SELECTOR -->
@@ -298,7 +603,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     <button class="spd-btn" onclick="setSpeed(1.00)">100%</button>
   </div>
 
-  <!-- DRIVE PAD -->
+  <!-- D-PAD CONTROLS -->
   <div class="dpad-wrap">
     <div class="dpad">
       <div></div>
@@ -315,10 +620,38 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     </div>
   </div>
 
-  <div class="mode-wrap">
+  <!-- MPU CLOSED-LOOP TARGET ANGLE TURNS -->
+  <div style="display:flex; gap:8px; margin-bottom:12px;">
+    <button class="btn-turn" onclick="turnAngle('left', 90)">⟲ 90° Left (MPU)</button>
+    <button class="btn-turn" onclick="turnAngle('right', 90)">⟳ 90° Right (MPU)</button>
+    <button class="btn-turn" onclick="turnAngle('right', 180)">↩ 180° Return</button>
+  </div>
+
+  <!-- INSTRUCTED ROVING ROUTINE LAUNCHER -->
+  <div class="card mission-box">
+    <div class="card-title" style="color:#38bdf8;">
+      <span>🚀 Instructed Mission (Auto Roving)</span>
+      <span id="missionStatusChip" style="background:#334155; padding:2px 8px; border-radius:10px; font-size:11px;">READY</span>
+    </div>
+    <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">
+      Executes straight legs with MPU heading turns and automatic GPS geotagging.
+    </div>
+    <div style="display:flex; gap:6px;">
+      <select id="selMission" style="background:#1e293b; color:#f8fafc; border:1px solid #334155; border-radius:6px; padding:6px; font-size:12px; flex:2;">
+        <option value="preset_4step_inspection">Preset 1: 4-Step Field Mission (5m R → 10m L → 4m L → Return)</option>
+        <option value="preset_u_turn_sweep">Preset 2: U-Turn Canopy Sweep (8m R → 4m R → 8m → Return)</option>
+        <option value="preset_straight_sampling">Preset 3: Linear Row Sampling (5m → 5m → 5m → Return)</option>
+      </select>
+      <button class="btn-action" style="flex:1; padding:6px 10px;" onclick="startInstructedMission()">Start</button>
+      <button class="btn-stop" style="border-radius:6px; font-size:12px; padding:6px 12px; font-weight:bold; cursor:pointer;" onclick="abortInstructedMission()">Abort</button>
+    </div>
+    <div id="missionDetail" style="font-size:11px; color:#38bdf8; margin-top:6px; display:none;"></div>
+  </div>
+
+  <div style="margin-top:8px; font-size:13px; color:#8b949e;">
     <label style="cursor:pointer;">
       <input type="checkbox" id="chkContinuous" onchange="toggleContinuous(this.checked)" checked>
-      <b>Continuous Mode</b> (Click to run, Click STOP to halt)
+      <b>Continuous Drive</b> (Click to run, Click STOP to halt)
     </label>
   </div>
 
@@ -399,13 +732,22 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       document.querySelectorAll('.spd-btn').forEach(b => {
         b.classList.toggle('active', b.textContent === Math.round(spd * 100) + '%');
       });
-      document.getElementById('lblSpd').textContent = Math.round(spd * 100) + '%';
       fetch('/cmd?spd=' + spd).catch(()=>{});
     };
 
     window.execCmd = (act) => {
       document.getElementById('lblMotion').textContent = act.toUpperCase();
       fetch('/cmd?act=' + act + '&spd=' + curSpeed).catch(()=>{});
+    };
+
+    window.turnAngle = (dir, deg) => {
+      document.getElementById('lblMotion').textContent = "TURN " + deg + "° " + dir.toUpperCase();
+      fetch('/cmd?act=turn&dir=' + dir + '&deg=' + deg + '&spd=' + curSpeed).catch(()=>{});
+    };
+
+    window.resetYaw = () => {
+      fetch('/cmd?act=reset_yaw').catch(()=>{});
+      document.getElementById('lblYaw').textContent = "0.0°";
     };
 
     window.pressBtn = (act) => {
@@ -418,14 +760,14 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       }
     };
 
-    // AI CROP HEALTH EVALUATION FROM PI
+    // AI CROP HEALTH EVALUATION + GEOTAG FROM PI
     window.captureEvaluate = async () => {
       const box = document.getElementById('evalBox');
       const title = document.getElementById('evalTitle');
       const detail = document.getElementById('evalDetail');
       box.style.display = "block";
-      title.textContent = "📸 Capturing & Analyzing Crop…";
-      detail.textContent = "Running IRRI Leaf Color Chart (LCC) & ExG model…";
+      title.textContent = "📸 Capturing & Geotagging Crop…";
+      detail.textContent = "Running IRRI Leaf Color Chart (LCC) & ExG model on Pi…";
 
       try {
         const res = await fetch('http://' + piHost + '/api/capture_evaluate', { method: 'POST' });
@@ -445,6 +787,68 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         detail.textContent = "Could not reach Pi at http://" + piHost + ". Check Pi address.";
       }
     };
+
+    // INSTRUCTED ROVING CONTROLS
+    window.startInstructedMission = async () => {
+      const preset = document.getElementById('selMission').value;
+      const statusChip = document.getElementById('missionStatusChip');
+      const detail = document.getElementById('missionDetail');
+      statusChip.textContent = "STARTING…";
+      statusChip.style.background = "#0284c7";
+      detail.style.display = "block";
+      detail.textContent = "Initiating mission: " + preset;
+
+      try {
+        const res = await fetch('http://' + piHost + '/api/instructed_roving/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ preset_id: preset, steps: [] })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          statusChip.textContent = "ACTIVE";
+          statusChip.style.background = "#238636";
+        } else {
+          statusChip.textContent = "ERROR";
+          statusChip.style.background = "#da3633";
+          detail.textContent = d.error || "Failed to start mission.";
+        }
+      } catch (e) {
+        statusChip.textContent = "ERROR";
+        detail.textContent = "Could not reach Raspberry Pi on http://" + piHost;
+      }
+    };
+
+    window.abortInstructedMission = async () => {
+      try {
+        await fetch('http://' + piHost + '/api/instructed_roving/stop', { method: 'POST' });
+        document.getElementById('missionStatusChip').textContent = "ABORTED";
+        document.getElementById('missionStatusChip').style.background = "#da3633";
+        window.execCmd('stop');
+      } catch (e) {}
+    };
+
+    // TELEMETRY REFRESH POLLER (Heading & GPS)
+    const pollSensors = async () => {
+      try {
+        const res = await fetch('/telemetry');
+        const data = await res.json();
+        if (data.yaw !== undefined) {
+          document.getElementById('lblYaw').textContent = (data.yaw >= 0 ? "+" : "") + data.yaw.toFixed(1) + "°";
+        }
+        if (data.motion) {
+          document.getElementById('lblMotion').textContent = data.motion;
+        }
+        if (data.gps_status === "fix") {
+          document.getElementById('lblGps').textContent = data.gps_lat.toFixed(5) + ", " + data.gps_lon.toFixed(5) + " (" + data.gps_sats + " sats)";
+          document.getElementById('lblGps').style.color = "#7ee787";
+        } else {
+          document.getElementById('lblGps').textContent = "Searching for satellites (No Fix)";
+          document.getElementById('lblGps').style.color = "#e3b341";
+        }
+      } catch (e) {}
+    };
+    setInterval(pollSensors, 250);
 
     // Initialize from localStorage if saved
     window.addEventListener("DOMContentLoaded", () => {
@@ -488,10 +892,42 @@ void handleCmd() {
 
     if (server.hasArg("act")) {
         String act = server.arg("act");
-        applyCommand(act);
+
+        if (act == "turn_left" || (act == "turn" && server.arg("dir") == "left")) {
+            float deg = server.hasArg("deg") ? server.arg("deg").toFloat() : 90.0f;
+            startTurn("left", deg);
+        } else if (act == "turn_right" || (act == "turn" && server.arg("dir") == "right")) {
+            float deg = server.hasArg("deg") ? server.arg("deg").toFloat() : 90.0f;
+            startTurn("right", deg);
+        } else if (act == "reset_yaw") {
+            yaw_deg = 0.0f;
+            turn_start_yaw = 0.0f;
+            is_turning = false;
+        } else {
+            is_turning = false;
+            applyCommand(act);
+        }
     }
 
     server.send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
+void handleTelemetry() {
+    String json = "{";
+    json += "\"yaw\":" + String(yaw_deg, 2) + ",";
+    json += "\"pitch\":" + String(pitch_deg, 2) + ",";
+    json += "\"roll\":" + String(roll_deg, 2) + ",";
+    json += "\"mpu_ok\":" + String(mpu_ok ? 1 : 0) + ",";
+    json += "\"gps_status\":\"" + gps_status + "\",";
+    json += "\"gps_lat\":" + String(gps_lat, 6) + ",";
+    json += "\"gps_lon\":" + String(gps_lon, 6) + ",";
+    json += "\"gps_sats\":" + String(gps_sats) + ",";
+    json += "\"motion\":\"" + current_motion + "\",";
+    json += "\"speed\":" + String(current_speed, 2) + ",";
+    json += "\"is_turning\":" + String(is_turning ? 1 : 0) + ",";
+    json += "\"target_deg\":" + String(turn_target_degrees, 1);
+    json += "}";
+    server.send(200, "application/json", json);
 }
 
 // ------------------------------------------------------------------------------
@@ -499,23 +935,34 @@ void handleCmd() {
 // ------------------------------------------------------------------------------
 void setup() {
     Serial.begin(115200);
-    delay(300);
+    delay(200);
 
     Serial.println("\n========================================================");
-    Serial.println("RiceTrack — ESP32 AP Controller + Camera Display");
+    Serial.println("RiceTrack — ESP32 AP Controller + MPU & GPS Guidance");
     Serial.println("========================================================");
 
     pinMode(PIN_LED, OUTPUT);
     digitalWrite(PIN_LED, HIGH);
 
+    // 1. Initialize Motors
     initPWM();
     stopMotors();
 
-    // Broadcast Wi-Fi AP
+    // 2. Initialize MPU-6050
+    mpu_ok = mpuInit();
+    Serial.print("MPU-6050 IMU: ");
+    Serial.println(mpu_ok ? "READY (I2C SDA=21, SCL=22)" : "NOT FOUND (Will retry in loop)");
+
+    // 3. Initialize NEO-6M GPS on UART2
+    GPS_Serial.begin(GPS_BAUD, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+    Serial.println("NEO-6M GPS  : READY (UART2 RX=16, TX=17 @ 9600)");
+
+    // 4. Start Wi-Fi Access Point
     WiFi.mode(WIFI_AP);
     WiFi.softAP("RiceTrack-Rover", "ricetrack123");
     IPAddress myIP = WiFi.softAPIP();
 
+    Serial.println("--------------------------------------------------------");
     Serial.println("1. Connect Phone/Tablet to Wi-Fi:");
     Serial.println("   SSID     : RiceTrack-Rover");
     Serial.println("   Password : ricetrack123");
@@ -525,6 +972,7 @@ void setup() {
 
     server.on("/", handleRoot);
     server.on("/cmd", handleCmd);
+    server.on("/telemetry", handleTelemetry);
     server.begin();
 
     digitalWrite(PIN_LED, LOW);
@@ -532,4 +980,90 @@ void setup() {
 
 void loop() {
     server.handleClient();
+
+    // 1. Update MPU-6050 Readings
+    if (!mpu_ok) {
+        static uint32_t last_retry = 0;
+        if (millis() - last_retry >= 2000) {
+            last_retry = millis();
+            mpu_ok = mpuInit();
+        }
+    } else {
+        mpuUpdate();
+    }
+
+    // 2. Poll GPS NMEA Stream
+    gpsPoll();
+
+    // 3. Closed-Loop Turn Controller (MPU Target Angle Guidance)
+    if (is_turning) {
+        updateTurn();
+    }
+
+    // 4. Broadcast IMU Telemetry over Serial @ 20 Hz
+    uint32_t now = millis();
+    if (now - last_imu_tx_ms >= 50) {
+        last_imu_tx_ms = now;
+        Serial.print("{\"t\":\"i\",\"r\":");
+        Serial.print(roll_deg, 2);
+        Serial.print(",\"p\":");
+        Serial.print(pitch_deg, 2);
+        Serial.print(",\"y\":");
+        Serial.print(yaw_deg, 2);
+        Serial.print(",\"ok\":");
+        Serial.print(mpu_ok ? 1 : 0);
+        Serial.println("}");
+    }
+
+    // 5. Broadcast GPS Telemetry over Serial @ 1 Hz
+    if (now - last_gps_tx_ms >= 1000) {
+        last_gps_tx_ms = now;
+        Serial.print("{\"t\":\"g\",\"s\":\"");
+        Serial.print(gps_status);
+        Serial.print("\",\"la\":");
+        Serial.print(gps_lat, 6);
+        Serial.print(",\"lo\":");
+        Serial.print(gps_lon, 6);
+        Serial.print(",\"n\":");
+        Serial.print(gps_sats);
+        Serial.println("}");
+    }
+
+    // 6. Check incoming Serial Commands from Raspberry Pi
+    while (Serial.available()) {
+        char c = (char)Serial.read();
+        if (c == '\r') continue;
+        if (c == '\n') {
+            if (serial_rx_buf.length() > 0) {
+                // Parse simple serial JSON
+                if (serial_rx_buf.indexOf("\"c\":\"m\"") != -1) {
+                    int l_idx = serial_rx_buf.indexOf("\"l\":");
+                    int r_idx = serial_rx_buf.indexOf("\"r\":");
+                    if (l_idx != -1 && r_idx != -1) {
+                        float l = serial_rx_buf.substring(l_idx + 4).toFloat();
+                        float r = serial_rx_buf.substring(r_idx + 4).toFloat();
+                        is_turning = false;
+                        setMotors(l, r);
+                    }
+                } else if (serial_rx_buf.indexOf("\"c\":\"s\"") != -1) {
+                    stopMotors();
+                } else if (serial_rx_buf.indexOf("\"c\":\"tl\"") != -1) {
+                    int d_idx = serial_rx_buf.indexOf("\"deg\":");
+                    float deg = (d_idx != -1) ? serial_rx_buf.substring(d_idx + 6).toFloat() : 90.0f;
+                    startTurn("left", deg);
+                } else if (serial_rx_buf.indexOf("\"c\":\"tr\"") != -1) {
+                    int d_idx = serial_rx_buf.indexOf("\"deg\":");
+                    float deg = (d_idx != -1) ? serial_rx_buf.substring(d_idx + 6).toFloat() : 90.0f;
+                    startTurn("right", deg);
+                } else if (serial_rx_buf.indexOf("\"c\":\"ry\"") != -1) {
+                    yaw_deg = 0.0f;
+                }
+            }
+            serial_rx_buf = "";
+        } else {
+            if (serial_rx_buf.length() < 120) {
+                serial_rx_buf += c;
+            }
+        }
+    }
 }

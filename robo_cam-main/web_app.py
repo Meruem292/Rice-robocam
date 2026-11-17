@@ -11,11 +11,13 @@ import base64
 import csv
 from datetime import datetime
 import io
+import json
 import os
 from pathlib import Path
 import threading
 import time
 from typing import Any
+import urllib.request
 
 import cv2
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
@@ -377,6 +379,19 @@ class WebHardwareHub:
             return True
 
         start_yaw = self.imu.yaw
+
+        # Dispatch closed-loop MPU turn command directly to ESP32 AP
+        try:
+            threading.Thread(
+                target=lambda: urllib.request.urlopen(
+                    f"http://192.168.4.1/cmd?act=turn&dir={turn_dir}&deg={target_degrees}",
+                    timeout=0.4,
+                ),
+                daemon=True,
+            ).start()
+        except Exception:
+            pass
+
         self.motors.execute(turn_dir)
         self.motor_cmd = turn_dir
         self.speed = self.motors._current_speed
@@ -548,6 +563,7 @@ class WebHardwareHub:
         last_tick = time.monotonic()
         last_imu_retry = 0.0
         last_gps_scan = 0.0
+        last_esp_http_poll = 0.0
         while self._running:
             now = time.monotonic()
 
@@ -557,6 +573,28 @@ class WebHardwareHub:
                     last_imu_retry = now
                 try:
                     self.imu._poll()
+                except Exception:
+                    pass
+
+            # 1b. Sync Telemetry from ESP32 AP over Wi-Fi (MPU-6050 Yaw & GPS Geotag)
+            if (now - last_esp_http_poll) >= 0.15:
+                last_esp_http_poll = now
+                try:
+                    req = urllib.request.Request("http://192.168.4.1/telemetry", headers={"User-Agent": "RiceTrackPi"})
+                    with urllib.request.urlopen(req, timeout=0.15) as resp:
+                        t_data = json.loads(resp.read().decode("utf-8"))
+                        if "yaw" in t_data:
+                            self.yaw = round(float(t_data["yaw"]), 1)
+                            self.roll = round(float(t_data.get("roll", 0.0)), 1)
+                            self.pitch = round(float(t_data.get("pitch", 0.0)), 1)
+                            self.imu_ok = bool(t_data.get("mpu_ok", False))
+                            if hasattr(self.imu, "_bridge"):
+                                self.imu._bridge._current_yaw = self.yaw
+                        if t_data.get("gps_status") == "fix":
+                            self.gps_state = "fix"
+                            self.lat = float(t_data.get("gps_lat", self.lat))
+                            self.lon = float(t_data.get("gps_lon", self.lon))
+                            self.sats = int(t_data.get("gps_sats", 0))
                 except Exception:
                     pass
 

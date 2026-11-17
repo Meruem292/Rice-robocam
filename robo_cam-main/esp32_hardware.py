@@ -65,6 +65,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
+import urllib.request
 
 import cv2
 import numpy as np
@@ -961,6 +962,18 @@ class ESP32BTS7960Motors(QObject):
         self._current_cmd = cmd
         self._current_speed = speed
         self.motor_state.emit(cmd, speed, self.gpio_ready)
+
+        # Dispatch command to ESP32 AP over Wi-Fi
+        try:
+            threading.Thread(
+                target=lambda: urllib.request.urlopen(
+                    f"http://192.168.4.1/cmd?act={cmd}&spd={d_drive}",
+                    timeout=0.25,
+                ),
+                daemon=True,
+            ).start()
+        except Exception:
+            pass
 
     def stop(self):
         """Emergency stop — halt both motors and send stop command to ESP32."""
