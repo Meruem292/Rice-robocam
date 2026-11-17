@@ -56,17 +56,22 @@ source .venv/bin/activate
 pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 
-# 5. Make launcher executable
+# 5. Make launcher and auto-start scripts executable
 chmod +x run_web.sh || true
 chmod +x create_wifi_ap.sh || true
+chmod +x enable_autostart.sh || true
+chmod +x disable_autostart.sh || true
 
 echo "========================================================"
 echo "✅ Setup Complete!"
-echo "To launch the web interface manually:"
+echo ""
+echo "To test/run manually right now:"
 echo "    ./run_web.sh"
 echo ""
-echo "To auto-start on boot via systemd:"
-echo "    sudo cp ricetrack.service /etc/systemd/system/"
-echo "    sudo systemctl daemon-reload"
-echo "    sudo systemctl enable --now ricetrack.service"
+echo "To enable 100% AUTOMATIC IN-FIELD BOOT (Hotspot + Web App):"
+echo "    sudo ./enable_autostart.sh"
+echo ""
+echo "Once enabled, you never need to touch the terminal again!"
+echo "Just power on the rover, connect to 'RiceTrack-Rover' Wi-Fi,"
+echo "and open: http://192.168.4.1:8000"
 echo "========================================================"

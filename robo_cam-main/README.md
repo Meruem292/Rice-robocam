@@ -132,30 +132,25 @@ chmod +x setup_rpi.sh
 ./setup_rpi.sh
 ```
 
-### Step 2 (Optional): Enable In-Field Wi-Fi Hotspot
-If operating in remote rice fields without an existing router, configure the Pi to broadcast its own Wi-Fi AP:
+### Step 2: One-Command Auto-Start on Rover Boot (Hotspot + Web App)
+To make the rover 100% headless in the field so you never need a keyboard, monitor, or terminal again:
 ```bash
-chmod +x create_wifi_ap.sh
-./create_wifi_ap.sh
+sudo ./enable_autostart.sh
 ```
+This single script automatically:
+1. Configures the onboard Wi-Fi as an in-field Access Point (`RiceTrack-Rover`, `192.168.4.1`) and sets it to **auto-start on boot**.
+2. Creates and enables the systemd background service (`ricetrack.service`) matching your exact user account and directory.
+3. Automatically starts both the Wi-Fi Hotspot and the RiceTrack Web App whenever the battery power switch is flipped!
+
 * **Hotspot Name (SSID):** `RiceTrack-Rover`
 * **Password:** `ricetrack123`
-* **Rover IP:** `192.168.4.1`
+* **In-Field Dashboard URL:** `http://192.168.4.1:8000`
 
-### Step 3: Run the Web Application
-```bash
-chmod +x run_web.sh
-./run_web.sh
-```
-Open **`http://<pi-ip>:8000`** (or `http://192.168.4.1:8000` if connected to hotspot) in any web browser on your phone, tablet, or laptop.
-
-### Step 4: Auto-Start on Rover Boot (systemd service)
-To have RiceTrack start automatically whenever the rover is switched on:
-```bash
-sudo cp ricetrack.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now ricetrack.service
-```
+### Step 3 (Optional): Manual Testing & Control
+If you want to test manually without rebooting:
+* **Launch web app manually:** `./run_web.sh`
+* **Reconfigure Wi-Fi AP alone:** `./create_wifi_ap.sh`
+* **Disable auto-start anytime:** `sudo ./disable_autostart.sh`
 
 ---
 

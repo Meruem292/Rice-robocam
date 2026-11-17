@@ -1,16 +1,22 @@
 [Unit]
 Description=RiceTrack Agricultural Rover Web Server & Vision Service
-After=network.target multi-user.target
+After=network.target network-online.target multi-user.target
 Wants=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/robo_cam-main/robo_cam-main
-Environment="PATH=/home/pi/robo_cam-main/robo_cam-main/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# NOTE: Run sudo ./enable_autostart.sh to automatically configure your exact user and path!
+User=robocam2k26
+WorkingDirectory=/home/robocam2k26/Rice-robocam/robo_cam-main
+Environment="PATH=/home/robocam2k26/Rice-robocam/robo_cam-main/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONUNBUFFERED=1"
 Environment="RICETRACK_HOST=0.0.0.0"
 Environment="RICETRACK_PORT=8000"
-ExecStart=/home/pi/robo_cam-main/robo_cam-main/.venv/bin/python3 web_app.py
+
+# Ensure In-Field Hotspot is up before web server binds
+ExecStartPre=-/usr/bin/nmcli connection up RiceTrack-Rover
+
+ExecStart=/home/robocam2k26/Rice-robocam/robo_cam-main/.venv/bin/python3 web_app.py
 Restart=always
 RestartSec=3
 

@@ -17,6 +17,9 @@ echo "========================================================"
 if command -v nmcli >/dev/null 2>&1; then
     echo "Using NetworkManager (nmcli)..."
     
+    # Ensure Wi-Fi radio is not soft-blocked by rfkill
+    sudo rfkill unblock wifi 2>/dev/null || true
+
     # Delete existing hotspot connection if already configured
     nmcli connection delete "$SSID" 2>/dev/null || true
 
@@ -34,6 +37,10 @@ if command -v nmcli >/dev/null 2>&1; then
     nmcli connection modify "$SSID" 802-11-wireless-security.psk "$PASSWORD"
     nmcli connection modify "$SSID" ipv4.method shared
     nmcli connection modify "$SSID" ipv4.addresses 192.168.4.1/24
+
+    # Ensure Hotspot connects automatically on every boot with high priority
+    nmcli connection modify "$SSID" connection.autoconnect yes
+    nmcli connection modify "$SSID" connection.autoconnect-priority 100
 
     # Activate Hotspot
     nmcli connection up "$SSID"
