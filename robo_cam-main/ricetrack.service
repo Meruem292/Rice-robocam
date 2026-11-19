@@ -1,7 +1,7 @@
 [Unit]
 Description=RiceTrack Agricultural Rover Web Server & Vision Service
-After=network.target network-online.target multi-user.target
-Wants=network.target
+After=network.target network-online.target multi-user.target esp32-wifi-connect.service
+Wants=network.target esp32-wifi-connect.service
 
 [Service]
 Type=simple
@@ -13,8 +13,8 @@ Environment="PYTHONUNBUFFERED=1"
 Environment="RICETRACK_HOST=0.0.0.0"
 Environment="RICETRACK_PORT=8000"
 
-# Ensure In-Field Hotspot is up before web server binds
-ExecStartPre=-/usr/bin/nmcli connection up RiceTrack-Rover
+# Ensure Wi-Fi connection profile is up before web server binds
+ExecStartPre=-/usr/bin/nmcli connection up RiceTrack-Rover-Client
 
 ExecStart=/home/robocam2k26/Rice-robocam/robo_cam-main/.venv/bin/python3 web_app.py
 Restart=always

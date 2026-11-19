@@ -1,54 +1,106 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# RiceTrack — Connect Raspberry Pi 4B to ESP32 Wi-Fi AP
+# RiceTrack — Connect Raspberry Pi 4B to ESP32 Wi-Fi AP & Enable Auto-Connect on Boot
 # ==============================================================================
-# In this architecture:
-# - ESP32 hosts the Wi-Fi AP (SSID: RiceTrack-Rover, IP: 192.168.4.1)
-# - ESP32 runs the high-speed motor control dashboard directly on port 80.
-# - Raspberry Pi connects to the ESP32 Wi-Fi AP with Static IP: 192.168.4.2
-# - Raspberry Pi streams live camera (port 8000) & AI crop analysis to the page.
+# Architecture:
+# - ESP32 hosts the Wi-Fi AP (SSID: RiceTrack-Rover, IP: 192.168.4.1).
+# - Raspberry Pi connects as a client station with Static IP: 192.168.4.50.
+# - A persistent systemd service (esp32-wifi-connect.service) ensures that the
+#   Pi automatically connects on EVERY boot and reconnects if link ever drops.
 # ==============================================================================
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 SSID="RiceTrack-Rover"
 PASS="ricetrack123"
 PI_IP="192.168.4.50/24"
 GATEWAY="192.168.4.1"
+CON_NAME="RiceTrack-Rover-Client"
 
 echo "========================================================"
-echo "🌾 Connecting Raspberry Pi to ESP32 AP: $SSID"
+echo "🌾 RiceTrack — ESP32 AP Auto-Connect Configuration"
+echo "========================================================"
+echo "• Target Wi-Fi SSID : $SSID"
+echo "• Raspberry Pi IP   : 192.168.4.50 (Static)"
+echo "• ESP32 AP Gateway  : 192.168.4.1"
 echo "========================================================"
 
+# 1. Unblock Wi-Fi radio and disable power-saving sleep
+echo "[1/4] Unblocking Wi-Fi and disabling power management..."
 sudo rfkill unblock wifi 2>/dev/null || true
+sudo iw wlan0 set power_save off 2>/dev/null || true
 
-# Rescan Wi-Fi to find ESP32 AP
-echo "Scanning for $SSID..."
-sudo nmcli device wifi rescan 2>/dev/null || true
-sleep 2
-
-# Delete old connection if exists
+# 2. Clean up any obsolete AP or conflicting profiles
+echo "[2/4] Removing obsolete/conflicting NetworkManager profiles..."
 sudo nmcli connection delete "$SSID" 2>/dev/null || true
+sudo nmcli connection delete "$CON_NAME" 2>/dev/null || true
 
-# Connect to the ESP32 AP
-echo "Connecting to $SSID..."
-sudo nmcli device wifi connect "$SSID" password "$PASS" ifname wlan0 || {
-    echo "⚠️ Direct connect failed, retrying after fresh scan..."
-    sleep 3
-    sudo nmcli device wifi rescan 2>/dev/null || true
-    sleep 2
-    sudo nmcli device wifi connect "$SSID" password "$PASS" ifname wlan0
+# 3. Create clean Station (Infrastructure) profile with infinite autoconnect retries
+echo "[3/4] Creating persistent auto-connect Wi-Fi profile ($CON_NAME)..."
+sudo nmcli connection add \
+    type wifi \
+    ifname wlan0 \
+    con-name "$CON_NAME" \
+    ssid "$SSID" \
+    mode infrastructure
+
+sudo nmcli connection modify "$CON_NAME" 802-11-wireless-security.key-mgmt wpa-psk
+sudo nmcli connection modify "$CON_NAME" 802-11-wireless-security.psk "$PASS"
+sudo nmcli connection modify "$CON_NAME" 802-11-wireless.powersave 2
+sudo nmcli connection modify "$CON_NAME" ipv4.method manual
+sudo nmcli connection modify "$CON_NAME" ipv4.addresses "$PI_IP"
+sudo nmcli connection modify "$CON_NAME" ipv4.gateway "$GATEWAY"
+sudo nmcli connection modify "$CON_NAME" ipv4.dns "$GATEWAY"
+sudo nmcli connection modify "$CON_NAME" connection.autoconnect yes
+sudo nmcli connection modify "$CON_NAME" connection.autoconnect-priority 100
+sudo nmcli connection modify "$CON_NAME" connection.autoconnect-retries 0
+sudo nmcli connection modify "$CON_NAME" connection.auth-retries 0
+
+# 4. Install & Enable Persistent Auto-Connect Systemd Watchdog Service
+echo "[4/4] Installing systemd watchdog (/etc/systemd/system/esp32-wifi-connect.service)..."
+chmod +x "$SCRIPT_DIR/esp32_wifi_watchdog.sh"
+
+WATCHDOG_SERVICE="/etc/systemd/system/esp32-wifi-connect.service"
+sudo bash -c "cat <<EOF > $WATCHDOG_SERVICE
+[Unit]
+Description=RiceTrack ESP32 Wi-Fi Auto-Connect Watchdog
+After=network.target NetworkManager.service
+Wants=network.target NetworkManager.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$SCRIPT_DIR
+ExecStart=/bin/bash $SCRIPT_DIR/esp32_wifi_watchdog.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF"
+
+sudo systemctl daemon-reload
+sudo systemctl enable esp32-wifi-connect.service
+sudo systemctl restart esp32-wifi-connect.service
+
+# Attempt immediate activation
+echo ""
+echo "Activating Wi-Fi connection to $SSID..."
+sudo nmcli connection up "$CON_NAME" 2>/dev/null || {
+    echo "⚠️ Note: ESP32 AP not currently visible in immediate scan."
+    echo "   The background service will auto-connect the moment the ESP32 is powered ON!"
 }
-
-# Set static IP on ESP32 subnet so the web page always finds the camera at 192.168.4.2
-sudo nmcli connection modify "$SSID" ipv4.method manual ipv4.addresses "$PI_IP" ipv4.gateway "$GATEWAY" ipv4.dns "$GATEWAY"
-sudo nmcli connection modify "$SSID" connection.autoconnect yes
-sudo nmcli connection modify "$SSID" connection.autoconnect-priority 100
-
-sudo nmcli connection up "$SSID"
 
 echo ""
 echo "========================================================"
-echo "✅ Raspberry Pi is now connected to ESP32 AP!"
-echo "• Raspberry Pi IP: 192.168.4.50"
-echo "• ESP32 Dashboard: http://192.168.4.1"
-echo "• Camera Stream  : http://192.168.4.50:8000/api/video_feed"
+echo "✅ Automatic Boot-Up Connection is now FULLY ENABLED!"
+echo "• Every time the Raspberry Pi powers on, it will automatically"
+echo "  scan and connect to '$SSID' at 192.168.4.50."
+echo "• If the ESP32 is turned on after the Pi, it will connect"
+echo "  within seconds automatically."
+echo "• Camera Stream URL: http://192.168.4.50:8000/api/video_feed"
+echo "• ESP32 Dashboard  : http://192.168.4.1"
 echo "========================================================"

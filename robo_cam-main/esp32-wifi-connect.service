@@ -1,0 +1,15 @@
+[Unit]
+Description=RiceTrack ESP32 Wi-Fi Auto-Connect Watchdog
+After=network.target NetworkManager.service
+Wants=network.target NetworkManager.service
+
+[Service]
+Type=simple
+User=root
+# NOTE: Run sudo ./connect_to_esp32_ap.sh to automatically configure your exact install path!
+ExecStart=/bin/bash esp32_wifi_watchdog.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

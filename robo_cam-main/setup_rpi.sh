@@ -58,6 +58,8 @@ pip install -r requirements.txt
 
 # 5. Make launcher and auto-start scripts executable
 chmod +x run_web.sh || true
+chmod +x connect_to_esp32_ap.sh || true
+chmod +x esp32_wifi_watchdog.sh || true
 chmod +x create_wifi_ap.sh || true
 chmod +x enable_autostart.sh || true
 chmod +x disable_autostart.sh || true
