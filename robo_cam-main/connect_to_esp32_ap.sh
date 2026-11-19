@@ -47,17 +47,18 @@ sudo nmcli connection add \
     ssid "$SSID" \
     mode infrastructure
 
-sudo nmcli connection modify "$CON_NAME" 802-11-wireless-security.key-mgmt wpa-psk
-sudo nmcli connection modify "$CON_NAME" 802-11-wireless-security.psk "$PASS"
-sudo nmcli connection modify "$CON_NAME" 802-11-wireless.powersave 2
-sudo nmcli connection modify "$CON_NAME" ipv4.method manual
-sudo nmcli connection modify "$CON_NAME" ipv4.addresses "$PI_IP"
-sudo nmcli connection modify "$CON_NAME" ipv4.gateway "$GATEWAY"
-sudo nmcli connection modify "$CON_NAME" ipv4.dns "$GATEWAY"
-sudo nmcli connection modify "$CON_NAME" connection.autoconnect yes
-sudo nmcli connection modify "$CON_NAME" connection.autoconnect-priority 100
-sudo nmcli connection modify "$CON_NAME" connection.autoconnect-retries 0
-sudo nmcli connection modify "$CON_NAME" connection.auth-retries 0
+sudo nmcli connection modify "$CON_NAME" \
+    802-11-wireless-security.key-mgmt wpa-psk \
+    802-11-wireless-security.psk "$PASS" \
+    802-11-wireless.powersave 2 \
+    ipv4.addresses "$PI_IP" \
+    ipv4.gateway "$GATEWAY" \
+    ipv4.dns "$GATEWAY" \
+    ipv4.method manual \
+    connection.autoconnect yes \
+    connection.autoconnect-priority 100 \
+    connection.autoconnect-retries 0 \
+    connection.auth-retries 0
 
 # 4. Install & Enable Persistent Auto-Connect Systemd Watchdog Service
 echo "[4/4] Installing systemd watchdog (/etc/systemd/system/esp32-wifi-connect.service)..."

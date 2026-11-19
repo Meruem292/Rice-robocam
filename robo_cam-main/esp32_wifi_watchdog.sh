@@ -59,10 +59,14 @@ while true; do
         sudo nmcli device wifi connect "$SSID" password "$PASS" ifname wlan0 name "$CON_NAME" 2>/dev/null || true
         
         # Ensure static IP and autoconnect properties are preserved
-        sudo nmcli connection modify "$CON_NAME" ipv4.method manual ipv4.addresses "$PI_IP" ipv4.gateway "$GATEWAY" ipv4.dns "$GATEWAY" 2>/dev/null || true
-        sudo nmcli connection modify "$CON_NAME" connection.autoconnect yes 2>/dev/null || true
-        sudo nmcli connection modify "$CON_NAME" connection.autoconnect-priority 100 2>/dev/null || true
-        sudo nmcli connection modify "$CON_NAME" connection.autoconnect-retries 0 2>/dev/null || true
+        sudo nmcli connection modify "$CON_NAME" \
+            ipv4.addresses "$PI_IP" \
+            ipv4.gateway "$GATEWAY" \
+            ipv4.dns "$GATEWAY" \
+            ipv4.method manual \
+            connection.autoconnect yes \
+            connection.autoconnect-priority 100 \
+            connection.autoconnect-retries 0 2>/dev/null || true
         sudo nmcli connection up "$CON_NAME" 2>/dev/null || true
     fi
 
