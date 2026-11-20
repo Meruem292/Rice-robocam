@@ -44,6 +44,18 @@ const int PIN_I2C_SDA    = 21;
 const int PIN_I2C_SCL    = 22;
 const uint8_t MPU_ADDR   = 0x68;
 
+// NEO-6M GPS (UART2)
+const int PIN_GPS_RX     = 16;  // Connects to GPS TX
+const int PIN_GPS_TX     = 17;  // Connects to GPS RX
+
+// GPS State variables
+String gps_nmea_buf = "";
+bool gps_seen_data = false;
+bool gps_fix = false;
+int gps_sats = 0;
+double gps_lat = 0.0;
+double gps_lon = 0.0;
+
 // PWM Parameters
 const int PWM_FREQ       = 1000;  // 1 kHz
 const int PWM_RESOLUTION = 10;    // 10-bit (0 - 1023)
@@ -465,7 +477,17 @@ void mpuUpdate() {
     float gx_dps = ((float)gx - gx_bias) / 65.5f;
     float gy_dps = ((float)gy - gy_bias) / 65.5f;
     float gz_dps = (((float)gz - gz_bias) / 65.5f) * gyro_z_sign;
-    if (fabs(gz_dps) < 0.25f) gz_dps = 0.0f; // Deadband filter against stationary drift
+
+    // Zero-Velocity Auto-Bias Tracking & Stationary Yaw Lock:
+    // When both motors are stopped and chassis isn't being spun by hand (< 2.5 deg/s),
+    // continuously adapt gz_bias for thermal warm-up drift and lock yaw_deg solid!
+    bool rover_parked = (fabs(left_duty) < 0.01f && fabs(right_duty) < 0.01f && !is_turning_closed_loop);
+    if (rover_parked && fabs(gz_dps) < 2.5f) {
+        gz_bias = 0.992f * gz_bias + 0.008f * (float)gz;
+        gz_dps = 0.0f;
+    } else if (fabs(gz_dps) < 0.65f) {
+        gz_dps = 0.0f; // Moving vibration deadband
+    }
 
     // Relative to bootup base tilt level (0.0°, 0.0°)
     float accel_roll = (atan2(ay_g, az_g) * 180.0f / M_PI) - roll_zero_offset;
@@ -1001,12 +1023,69 @@ void handleRoot() {
     server.send_P(200, "text/html", PAGE_HTML);
 }
 
+// ------------------------------------------------------------------------------
+// NEO-6M GPS UART2 PARSER (Lightweight, zero external libraries)
+// ------------------------------------------------------------------------------
+double gpsNmeaToDec(const String& raw, const String& hemi) {
+    int dot = raw.indexOf('.');
+    if (raw.length() < 4 || dot < 3) return 0.0;
+    int degDigits = dot - 2;
+    double deg = raw.substring(0, degDigits).toDouble();
+    double mins = raw.substring(degDigits).toDouble();
+    double dec = deg + (mins / 60.0);
+    if (hemi == "S" || hemi == "W") dec = -dec;
+    return dec;
+}
+
+String gpsField(const String& line, int idx) {
+    int start = 0, count = 0;
+    for (int i = 0; i <= (int)line.length(); i++) {
+        if (i == (int)line.length() || line[i] == ',' || line[i] == '*') {
+            if (count == idx) return line.substring(start, i);
+            count++;
+            start = i + 1;
+        }
+    }
+    return "";
+}
+
+void pollGPS() {
+    while (Serial2.available()) {
+        char c = (char)Serial2.read();
+        gps_seen_data = true;
+        if (c == '\n') {
+            gps_nmea_buf.trim();
+            if (gps_nmea_buf.startsWith("$GPGGA") || gps_nmea_buf.startsWith("$GNGGA")) {
+                String latS = gpsField(gps_nmea_buf, 2);
+                String latH = gpsField(gps_nmea_buf, 3);
+                String lonS = gpsField(gps_nmea_buf, 4);
+                String lonH = gpsField(gps_nmea_buf, 5);
+                int fixQ    = gpsField(gps_nmea_buf, 6).toInt();
+                gps_sats    = gpsField(gps_nmea_buf, 7).toInt();
+                gps_fix     = (fixQ > 0);
+                if (gps_fix && latS.length() > 0 && lonS.length() > 0) {
+                    gps_lat = gpsNmeaToDec(latS, latH);
+                    gps_lon = gpsNmeaToDec(lonS, lonH);
+                }
+            }
+            gps_nmea_buf = "";
+        } else if (c != '\r' && gps_nmea_buf.length() < 120) {
+            gps_nmea_buf += c;
+        }
+    }
+}
+
 void handleTelemetry() {
+    String gstate = gps_fix ? "fix" : (gps_seen_data ? "searching" : "none");
     String json = "{";
     json += "\"yaw\":" + String(yaw_deg, 2) + ",";
     json += "\"pitch\":" + String(pitch_deg, 2) + ",";
     json += "\"roll\":" + String(roll_deg, 2) + ",";
     json += "\"mpu_ok\":" + String(mpu_ok ? "true" : "false") + ",";
+    json += "\"gps_state\":\"" + gstate + "\",";
+    json += "\"lat\":" + String(gps_lat, 6) + ",";
+    json += "\"lon\":" + String(gps_lon, 6) + ",";
+    json += "\"sats\":" + String(gps_sats) + ",";
     json += "\"turning\":" + String(is_turning_closed_loop ? "true" : "false") + ",";
     json += "\"accum\":" + String(turn_accumulated_degrees, 1) + ",";
     json += "\"locked\":" + String(heading_lock_active ? "true" : "false") + ",";
@@ -1078,6 +1157,9 @@ void setup() {
         Serial.println("⚠️ MPU-6050 not detected on I2C (SDA=21, SCL=22)");
     }
 
+    // Initialize NEO-6M GPS on UART2
+    Serial2.begin(9600, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+
     // Broadcast Wi-Fi AP
     WiFi.mode(WIFI_AP);
     WiFi.softAP("RiceTrack-Rover", "ricetrack123");
@@ -1101,6 +1183,7 @@ void setup() {
 void loop() {
     server.handleClient();
     mpuUpdate();
+    pollGPS();
     processSerial();
 
     // Broadcast IMU telemetry over Serial @ 20Hz (every 50ms)

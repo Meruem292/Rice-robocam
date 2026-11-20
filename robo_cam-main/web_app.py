@@ -156,6 +156,8 @@ class WebHardwareHub:
         self._last_live_result: Any = None
         self._last_scene_t: float = 0.0
         self._scene_alert: Any = None
+        self._esp_wifi_imu_ts: float = 0.0
+        self._esp_wifi_gps_ts: float = 0.0
 
         self._running = False
         self._thread: threading.Thread | None = None
@@ -179,6 +181,9 @@ class WebHardwareHub:
         }
 
     def _on_imu_reading(self, roll: float, pitch: float, *args):
+        # Do not let disconnected serial simulation overwrite live ESP32 Wi-Fi IMU telemetry
+        if not self.imu._bridge.connected and (time.monotonic() - self._esp_wifi_imu_ts) < 2.5:
+            return
         self.roll = float(roll)
         self.pitch = float(pitch)
         self.yaw = round(self.imu.yaw, 1)
@@ -190,12 +195,16 @@ class WebHardwareHub:
             self.stop_instructed_roving(f"Safety cutoff: Tilt {max(abs(self.roll), abs(self.pitch)):.0f}° > {tilt_limit:.0f}°")
 
     def _on_imu_state(self, ok: bool):
+        if not ok and (time.monotonic() - self._esp_wifi_imu_ts) < 2.5:
+            return
         self.imu_ok = bool(ok)
         if not ok:
             self.roll = 0.0
             self.pitch = 0.0
 
     def _on_gps_changed(self, state: str, lat: float, lon: float, sats: int):
+        if state == "none" and (time.monotonic() - self._esp_wifi_gps_ts) < 5.0:
+            return
         self.gps_state = state
         if state == "fix":
             self.lat = float(lat)
@@ -595,16 +604,17 @@ class WebHardwareHub:
                 except Exception:
                     pass
 
-            # 1b. If USB serial is disconnected, sync MPU telemetry from ESP32 AP over Wi-Fi
-            if not self.imu._bridge.connected and (now - last_esp_wifi_poll) >= 0.15:
+            # 1b. Sync MPU-6050 & NEO-6M GPS telemetry from ESP32 AP over Wi-Fi whenever serial isn't supplying live IMU
+            if (not self.imu._bridge.connected or not self.imu_ok) and (now - last_esp_wifi_poll) >= 0.20:
                 last_esp_wifi_poll = now
                 try:
                     import urllib.request, json
                     req = urllib.request.Request("http://192.168.4.1/telemetry")
-                    with urllib.request.urlopen(req, timeout=0.25) as resp:
+                    with urllib.request.urlopen(req, timeout=0.6) as resp:
                         if resp.status == 200:
                             tdata = json.loads(resp.read().decode())
                             if tdata.get("mpu_ok"):
+                                self._esp_wifi_imu_ts = now
                                 self.imu._bridge._current_yaw = float(tdata.get("yaw", 0.0))
                                 self.imu._bridge._current_pitch = float(tdata.get("pitch", 0.0))
                                 self.imu._bridge._current_roll = float(tdata.get("roll", 0.0))
@@ -613,6 +623,15 @@ class WebHardwareHub:
                                 self.yaw = round(self.imu._bridge._current_yaw, 1)
                                 self.pitch = round(self.imu._bridge._current_pitch, 1)
                                 self.roll = round(self.imu._bridge._current_roll, 1)
+                            # Sync NEO-6M GPS if present on ESP32
+                            if "gps_state" in tdata:
+                                self._esp_wifi_gps_ts = now
+                                gstate = str(tdata.get("gps_state", "none"))
+                                self.gps_state = gstate
+                                self.sats = int(tdata.get("sats", 0) or 0)
+                                if gstate == "fix":
+                                    self.lat = float(tdata.get("lat", self.lat))
+                                    self.lon = float(tdata.get("lon", self.lon))
                 except Exception:
                     pass
 
