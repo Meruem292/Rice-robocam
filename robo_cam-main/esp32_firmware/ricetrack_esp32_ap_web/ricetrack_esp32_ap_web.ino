@@ -62,7 +62,11 @@ bool mpu_ok = false;
 float roll_deg = 0.0f;
 float pitch_deg = 0.0f;
 float yaw_deg = 0.0f;
+float gx_bias = 0.0f;
+float gy_bias = 0.0f;
 float gz_bias = 0.0f;
+float roll_zero_offset = 0.0f;
+float pitch_zero_offset = 0.0f;
 float comp_roll = 0.0f;
 float comp_pitch = 0.0f;
 uint32_t last_imu_time_us = 0;
@@ -383,27 +387,53 @@ bool mpuInit() {
     delay(25);
     last_imu_time_us = micros();
 
-    // Calibrate stationary gyro bias (200 samples for rock-solid zero-drift compass)
-    long gz_sum = 0;
+    // Auto-calibrate on bootup: initial physical resting position becomes base tilt level (0°, 0°)
+    // and 3-axis stationary gyro bias is zeroed for drift-free rotation/compass tracking
+    long gx_sum = 0, gy_sum = 0, gz_sum = 0;
+    double roll_sum = 0.0, pitch_sum = 0.0;
     int samples = 0;
     for (int i = 0; i < 200; i++) {
         Wire.beginTransmission(MPU_ADDR);
-        Wire.write(0x47);
+        Wire.write(0x3B);
         if (Wire.endTransmission(false) == 0) {
-            if (Wire.requestFrom((uint16_t)MPU_ADDR, (uint8_t)2, (bool)true) == 2) {
-                int16_t gz_raw = (Wire.read() << 8) | Wire.read();
-                gz_sum += gz_raw;
+            if (Wire.requestFrom((uint16_t)MPU_ADDR, (uint8_t)14, (bool)true) == 14) {
+                int16_t ax = (Wire.read() << 8) | Wire.read();
+                int16_t ay = (Wire.read() << 8) | Wire.read();
+                int16_t az = (Wire.read() << 8) | Wire.read();
+                Wire.read(); Wire.read(); // skip temp
+                int16_t gx = (Wire.read() << 8) | Wire.read();
+                int16_t gy = (Wire.read() << 8) | Wire.read();
+                int16_t gz = (Wire.read() << 8) | Wire.read();
+
+                float ax_g = (float)ax / 8192.0f;
+                float ay_g = (float)ay / 8192.0f;
+                float az_g = (float)az / 8192.0f;
+
+                roll_sum += atan2(ay_g, az_g) * 180.0 / M_PI;
+                pitch_sum += atan2(-ax_g, sqrt(ay_g * ay_g + az_g * az_g)) * 180.0 / M_PI;
+                gx_sum += gx;
+                gy_sum += gy;
+                gz_sum += gz;
                 samples++;
             }
         }
         delay(2);
     }
     if (samples > 0) {
+        gx_bias = (float)gx_sum / (float)samples;
+        gy_bias = (float)gy_sum / (float)samples;
         gz_bias = (float)gz_sum / (float)samples;
+        roll_zero_offset = (float)(roll_sum / (double)samples);
+        pitch_zero_offset = (float)(pitch_sum / (double)samples);
     }
+    comp_roll = 0.0f;
+    comp_pitch = 0.0f;
+    roll_deg = 0.0f;
+    pitch_deg = 0.0f;
     yaw_deg = 0.0f;
     heading_lock_target = 0.0f;
     heading_err_integral = 0.0f;
+    last_imu_time_us = micros();
     return true;
 }
 
@@ -432,13 +462,18 @@ void mpuUpdate() {
     float ay_g = (float)ay / 8192.0f;
     float az_g = (float)az / 8192.0f;
 
-    float gx_dps = (float)gx / 65.5f;
-    float gy_dps = (float)gy / 65.5f;
+    float gx_dps = ((float)gx - gx_bias) / 65.5f;
+    float gy_dps = ((float)gy - gy_bias) / 65.5f;
     float gz_dps = (((float)gz - gz_bias) / 65.5f) * gyro_z_sign;
     if (fabs(gz_dps) < 0.25f) gz_dps = 0.0f; // Deadband filter against stationary drift
 
-    float accel_roll = atan2(ay_g, az_g) * 180.0f / M_PI;
-    float accel_pitch = atan2(-ax_g, sqrt(ay_g * ay_g + az_g * az_g)) * 180.0f / M_PI;
+    // Relative to bootup base tilt level (0.0°, 0.0°)
+    float accel_roll = (atan2(ay_g, az_g) * 180.0f / M_PI) - roll_zero_offset;
+    float accel_pitch = (atan2(-ax_g, sqrt(ay_g * ay_g + az_g * az_g)) * 180.0f / M_PI) - pitch_zero_offset;
+    while (accel_roll > 180.0f) accel_roll -= 360.0f;
+    while (accel_roll < -180.0f) accel_roll += 360.0f;
+    while (accel_pitch > 180.0f) accel_pitch -= 360.0f;
+    while (accel_pitch < -180.0f) accel_pitch += 360.0f;
 
     uint32_t now_us = micros();
     float dt = (float)(now_us - last_imu_time_us) / 1000000.0f;
@@ -739,15 +774,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     </div>
   </div>
 
-  <div class="mode-wrap">
-    <label style="cursor:pointer;">
-      <input type="checkbox" id="chkContinuous" onchange="toggleContinuous(this.checked)" checked>
-      <b>Continuous Mode</b> (Click to run, Click STOP to halt)
-    </label>
-  </div>
-
   <script>
-    let isContinuous = true;
     let curSpeed = 0.75;
     let piHost = localStorage.getItem("pi_host") || "192.168.4.50:8000";
     if (!piHost || piHost.startsWith("192.168.4.1")) {
@@ -823,10 +850,6 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       document.getElementById('camStatus').style.color = "#da3633";
     };
 
-    window.toggleContinuous = (val) => {
-      isContinuous = val;
-    };
-
     window.setSpeed = (spd) => {
       curSpeed = spd;
       document.querySelectorAll('.spd-btn').forEach(b => {
@@ -846,9 +869,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     };
 
     window.releaseBtn = () => {
-      if (!isContinuous) {
-        window.execCmd('stop');
-      }
+      window.execCmd('stop');
     };
 
     // AI CROP HEALTH EVALUATION FROM PI
@@ -960,9 +981,13 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     });
 
     window.addEventListener("keyup", e => {
-      if (!isContinuous && ["KeyW", "KeyS", "KeyA", "KeyD"].includes(e.code)) {
+      if (["KeyW", "KeyS", "KeyA", "KeyD"].includes(e.code)) {
         window.execCmd('stop');
       }
+    });
+
+    window.addEventListener("blur", () => {
+      window.execCmd('stop');
     });
   </script>
 </body>

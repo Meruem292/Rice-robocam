@@ -761,6 +761,7 @@ class StandardsInput(BaseModel):
     hue_hi: int
     height_lo: int
     height_hi: int
+    pole: float = 1.2
     gps_n: int
     tilt: int
     auto_drive_s: int
@@ -1243,6 +1244,7 @@ def update_standards(req: StandardsInput):
     h_lo, h_hi = min(req.height_lo, req.height_hi), max(req.height_lo, req.height_hi)
     STANDARDS["hue"] = (lo, hi)
     STANDARDS["height"] = (h_lo, h_hi)
+    STANDARDS["pole"] = round(max(0.3, min(3.0, float(req.pole))), 2)
     STANDARDS["gps_n"] = max(1, min(30, req.gps_n))
     STANDARDS["tilt"] = max(1, min(45, req.tilt))
     STANDARDS["auto_drive_s"] = max(1, min(60, req.auto_drive_s))
