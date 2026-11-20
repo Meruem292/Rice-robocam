@@ -6,26 +6,63 @@
   <title>RiceTrack — Web Application (PhilRice Muñoz)</title>
   <style>
     :root {
-      --bg: #0b0f0d;
-      --card: #131916;
-      --card-alt: #18201c;
-      --inset: #0e1411;
-      --line: #232e28;
+      color-scheme: dark;
+      --bg: #111312;
+      --card: #1b1e1c;
+      --card-alt: #222624;
+      --inset: #141715;
+      --line: #2c312e;
       --text: #f3f6f4;
-      --muted: #8fa196;
-      --green: #2ea043;
-      --green-dark: #196c2e;
-      --good: #3fb950;
-      --red-bg: #2d1215;
-      --red-text: #ff7b72;
-      --red-line: #5c2126;
+      --muted: #98a29c;
+      --green: #458e15;
+      --green-bright: #5cb811;
+      --green-dark: #2d660b;
+      --sidebar-top: #468f16;
+      --sidebar-bot: #2b610a;
+      --good: #57d163;
+      --red-bg: #4d1519;
+      --red-text: #ff8a84;
+      --red-line: #7a262c;
       --red-pin: #f85149;
-      --warn-bg: #2e210b;
-      --warn-text: #e3b341;
-      --warn-line: #5c4214;
-      --blue-bg: #0d233a;
+      --warn-bg: #33250c;
+      --warn-text: #f0c050;
+      --warn-line: #634816;
+      --blue-bg: #0f2740;
       --blue-text: #79c0ff;
       --blue: #388bfd;
+      --focus-ring: #8be83e;
+      --font-scale: 1;
+    }
+
+    html[data-contrast="high"] {
+      --bg: #000000;
+      --card: #0e110f;
+      --card-alt: #171c19;
+      --inset: #080a09;
+      --line: #506156;
+      --text: #ffffff;
+      --muted: #d4e0d8;
+      --focus-ring: #ffff00;
+    }
+
+    html[data-font="large"] {
+      --font-scale: 1.15;
+    }
+
+    html[data-motion="reduced"] *,
+    html[data-motion="reduced"] *::before,
+    html[data-motion="reduced"] *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
     }
 
     * {
@@ -33,82 +70,170 @@
       margin: 0;
       padding: 0;
       font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
-      user-select: none;
+    }
+
+    html {
+      font-size: calc(16px * var(--font-scale));
     }
 
     body {
       background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
+      min-block-size: 100dvb;
       display: flex;
       padding: 14px;
       gap: 14px;
       overflow-x: hidden;
     }
 
-    /* Sidebar */
+    /* Accessibility utilities */
+    .visually-hidden:where(:not(:focus-within, :active)) {
+      position: absolute !important;
+      clip-path: inset(50%) !important;
+      overflow: hidden !important;
+      width: 1px !important;
+      height: 1px !important;
+      margin: -1px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      white-space: nowrap !important;
+    }
+
+    .skip-link:focus {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 9999;
+      background: #ffffff;
+      color: #163b04;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 800;
+      text-decoration: none;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+      outline: 3px solid var(--focus-ring);
+      outline-offset: 3px;
+    }
+
+    /* Mobile Header (hidden on desktop) */
+    .mobile-header {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: linear-gradient(90deg, var(--sidebar-top), var(--sidebar-bot));
+      border-radius: 14px;
+      padding: 8px 12px;
+      color: #ffffff;
+      position: sticky;
+      top: 8px;
+      z-index: 40;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    .mobile-menu-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-inline-size: 44px;
+      min-block-size: 44px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(0, 0, 0, 0.16);
+      color: #ffffff;
+      font-size: 19px;
+      cursor: pointer;
+    }
+
+    /* Vibrant RiceTrack Green Sidebar (matches reference screenshot) */
     .sidebar {
-      width: 220px;
-      min-width: 220px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 18px 14px 14px 14px;
+      width: 210px;
+      min-width: 210px;
+      background: linear-gradient(180deg, var(--sidebar-top) 0%, var(--sidebar-bot) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 18px;
+      padding: 20px 14px 16px 14px;
       display: flex;
       flex-direction: column;
       gap: 6px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     }
 
     .brand {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 0 4px 14px 4px;
+      padding: 2px 8px 18px 8px;
+      color: #ffffff;
     }
 
     .brand-badge {
-      width: 32px;
-      height: 32px;
-      background: var(--green);
-      border-radius: 8px;
+      width: 30px;
+      height: 30px;
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 9px;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
     }
 
     .brand-title {
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 800;
       letter-spacing: -0.3px;
+      color: #ffffff;
+    }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
     .nav-btn {
       width: 100%;
+      min-block-size: 42px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 11px;
       padding: 10px 14px;
-      border-radius: 12px;
+      border-radius: 999px;
       border: 1px solid transparent;
       background: transparent;
-      color: #c9d6ce;
-      font-size: 13px;
+      color: rgba(255, 255, 255, 0.92);
+      font-size: 13.5px;
       font-weight: 600;
       cursor: pointer;
       text-align: left;
-      transition: all 0.15s ease;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .nav-btn svg {
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+      opacity: 0.92;
     }
 
     .nav-btn:hover {
-      background: rgba(46, 160, 67, 0.12);
+      background: rgba(255, 255, 255, 0.16);
       color: #ffffff;
-      border-color: rgba(46, 160, 67, 0.25);
     }
 
     .nav-btn.active {
-      background: var(--green);
-      color: #ffffff;
-      border-color: var(--good);
+      background: #f2f5f2;
+      color: #1f4f08;
+      font-weight: 700;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+    }
+
+    .nav-btn.active svg {
+      opacity: 1;
+      stroke: #1f4f08;
     }
 
     .nav-spacer {
@@ -116,22 +241,24 @@
     }
 
     .session-box {
-      background: var(--inset);
-      border: 1px solid #1e2923;
-      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
       padding: 10px 12px;
+      color: rgba(255, 255, 255, 0.92);
     }
 
     .session-title {
       font-size: 12px;
       font-weight: 700;
-      color: var(--text);
+      color: #ffffff;
     }
 
     .session-sub {
       font-size: 11px;
-      color: var(--muted);
+      color: rgba(255, 255, 255, 0.78);
       margin-top: 2px;
+      line-height: 1.4;
     }
 
     /* Main Content Area */
@@ -143,33 +270,45 @@
       min-width: 0;
     }
 
-    .topbar {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 12px 18px;
+    /* Top Alert Banner (matches screenshot red/green sleek top strip) */
+    .top-alert-strip {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--red-bg);
+      border: 1px solid var(--red-line);
+      color: var(--red-text);
       flex-wrap: wrap;
     }
 
-    .topbar-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .top-alert-strip.ok {
+      background: #142a18;
+      border-color: #24572d;
+      color: var(--good);
     }
 
-    .page-title {
-      font-size: 18px;
-      font-weight: 800;
+    .top-alert-strip.warn {
+      background: var(--warn-bg);
+      border-color: var(--warn-line);
+      color: var(--warn-text);
     }
 
-    .topbar-right {
+    .top-alert-left {
       display: flex;
       align-items: center;
       gap: 8px;
+      min-width: 0;
+    }
+
+    .top-alert-chips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       flex-wrap: wrap;
     }
 
@@ -186,8 +325,8 @@
       white-space: nowrap;
     }
 
-    .chip.gray { background: #18201c; color: var(--muted); border-color: #26332c; }
-    .chip.green { background: #0f2918; color: var(--good); border-color: #1f5730; }
+    .chip.gray { background: #232825; color: var(--muted); border-color: #343b37; }
+    .chip.green { background: #173a1b; color: var(--good); border-color: #296b31; }
     .chip.orange { background: var(--warn-bg); color: var(--warn-text); border-color: var(--warn-line); }
     .chip.red { background: var(--red-bg); color: var(--red-text); border-color: var(--red-line); }
     .chip.blue { background: var(--blue-bg); color: var(--blue-text); border-color: #1f4772; }
@@ -197,18 +336,18 @@
       display: none;
       align-items: center;
       gap: 10px;
-      padding: 10px 16px;
+      padding: 9px 14px;
       border-radius: 12px;
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 600;
       border: 1px solid transparent;
     }
     .status-banner.show { display: flex; }
     .status-banner.red { background: var(--red-bg); border-color: var(--red-line); color: var(--red-text); }
-    .status-banner.green { background: #0f2617; border-color: #1e522e; color: var(--good); }
+    .status-banner.green { background: #142a18; border-color: #24572d; color: var(--good); }
     .status-banner.blue { background: var(--blue-bg); border-color: #1f4772; color: var(--blue-text); }
     .status-banner.orange { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-text); }
-    .status-banner.gray { background: var(--card-alt); border-color: var(--line); color: var(--muted); }
+    .status-banner.gray { background: var(--card); border-color: var(--line); color: var(--muted); }
     #sceneBanner.red { animation: scenePulse 1s ease-in-out infinite; font-weight: 800; }
     @keyframes scenePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(248, 81, 73, 0.0); } 50% { box-shadow: 0 0 0 4px rgba(248, 81, 73, 0.45); } }
 
@@ -237,7 +376,7 @@
 
     .inset-box {
       background: var(--inset);
-      border: 1px solid #1c2621;
+      border: 1px solid var(--line);
       border-radius: 12px;
       padding: 10px 12px;
       display: flex;
@@ -247,10 +386,44 @@
 
     .control-grid {
       display: grid;
-      grid-template-columns: 5fr 4fr;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
       gap: 14px;
       flex: 1;
       min-height: 0;
+    }
+
+    /* Segmented Pill Toggle (Manual / Automatic - matches screenshot) */
+    .mode-segmented {
+      display: inline-flex;
+      align-self: center;
+      background: #141715;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .mode-seg-btn {
+      min-block-size: 36px;
+      padding: 6px 22px;
+      border-radius: 999px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .mode-seg-btn:hover {
+      color: #ffffff;
+    }
+
+    .mode-seg-btn.active {
+      background: var(--green-bright);
+      color: #0e1e05;
+      box-shadow: 0 2px 10px rgba(92, 184, 17, 0.35);
     }
 
     /* Buttons & Inputs */
@@ -259,33 +432,34 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
-      background: #171f1b;
+      min-block-size: 40px;
+      background: #232725;
       color: var(--text);
       border: 1px solid var(--line);
       border-radius: 10px;
-      padding: 7px 14px;
+      padding: 8px 14px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.12s ease;
     }
     .btn:hover:not(:disabled) {
-      background: #1f2924;
-      border-color: #34463c;
+      background: #2c312e;
+      border-color: #444d48;
     }
     .btn:disabled {
       opacity: 0.45;
       cursor: not-allowed;
     }
     .btn.primary {
-      background: var(--green);
+      background: #518c22;
       color: #ffffff;
-      border-color: var(--good);
+      border-color: #65ab2c;
       font-weight: 700;
     }
     .btn.primary:hover:not(:disabled) {
-      background: #36b54d;
-      border-color: #56d364;
+      background: #5da128;
+      border-color: #77c738;
     }
     .btn.seg.active {
       background: var(--green);
@@ -294,26 +468,41 @@
     }
 
     select, input[type="text"], input[type="number"] {
-      background: var(--card);
+      background: var(--inset);
       border: 1px solid var(--line);
       border-radius: 10px;
-      padding: 7px 12px;
+      padding: 8px 12px;
       color: var(--text);
-      font-size: 12px;
+      font-size: 12.5px;
       font-weight: 600;
-      outline: none;
+      min-block-size: 38px;
     }
     select:hover, input:focus {
-      border-color: var(--green);
+      border-color: var(--green-bright);
     }
 
     /* Camera Viewport */
+    .camera-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .cam-label-green {
+      color: var(--good);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
     .camera-viewport {
       position: relative;
       flex: 1;
-      min-height: 300px;
-      background: #0d1310;
-      border: 1px solid #223029;
+      aspect-ratio: 4 / 3;
+      min-height: 260px;
+      background: #0d100e;
+      border: 1px solid #2a302d;
       border-radius: 12px;
       overflow: hidden;
       display: flex;
@@ -323,9 +512,10 @@
     }
 
     .camera-viewport img {
+      display: block;
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover;
       display: none;
     }
 
@@ -343,7 +533,7 @@
       bottom: 12px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(11, 15, 13, 0.86);
+      background: rgba(11, 15, 13, 0.88);
       border: 1px solid #2c3d34;
       border-radius: 8px;
       padding: 5px 14px;
@@ -353,20 +543,44 @@
       pointer-events: none;
       display: none;
       white-space: nowrap;
+      max-width: 92%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .live-view-bar {
+      width: 100%;
+      min-block-size: 42px;
+      background: #141715;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s ease;
+    }
+    .live-view-bar:hover {
+      background: #222724;
     }
 
     /* Attitude Tiles */
     .tiles-row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
     }
 
     .att-tile {
       background: var(--inset);
-      border: 1px solid #1f2b25;
-      border-radius: 12px;
-      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 6px;
+      text-align: center;
     }
     .att-tile.danger {
       background: var(--red-bg);
@@ -380,62 +594,95 @@
     }
     .att-tile.danger .att-name { color: #ff948d; }
     .att-val {
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 800;
       color: var(--text);
       margin-top: 2px;
     }
     .att-tile.danger .att-val { color: var(--red-text); }
 
-    /* D-Pad */
+    /* Circular D-Pad (matches reference screenshot!) */
     .dpad-wrap {
       display: flex;
       justify-content: center;
-      margin: 4px 0;
+      padding: 8px 0 4px;
     }
     .dpad-grid {
       display: grid;
-      grid-template-columns: repeat(3, 46px);
-      grid-template-rows: repeat(3, 46px);
-      gap: 6px;
+      grid-template-columns: repeat(3, 52px);
+      grid-template-rows: repeat(3, 52px);
+      gap: 10px;
+      place-items: center;
     }
     .pad-btn {
-      background: #161e1a;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #272b29;
       color: var(--text);
-      border: 1px solid #28362e;
-      border-radius: 14px;
-      font-size: 17px;
-      font-weight: 700;
+      border: 1px solid #353b37;
+      font-size: 18px;
+      font-weight: 800;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.1s ease;
+      transition: transform 0.08s ease, background 0.12s ease, border-color 0.12s ease;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+      user-select: none;
+      -webkit-user-select: none;
     }
     .pad-btn:hover {
-      background: #1f2b25;
-      border-color: var(--green);
+      background: #333936;
+      border-color: #505a54;
       color: #ffffff;
     }
-    .pad-btn.active {
-      background: var(--green);
-      border-color: #56d364;
+    .pad-btn.active, .pad-btn:active {
+      background: var(--green-bright);
+      border-color: #8be83e;
+      color: #0b1904;
+      transform: scale(0.93);
+    }
+    #pad-stop {
+      background: #232725;
+      border-color: #464e49;
+      font-size: 15px;
+    }
+    #pad-stop.active, #pad-stop:active {
+      background: var(--red-pin);
+      border-color: #ff9a94;
       color: #ffffff;
+    }
+
+    @media (pointer: coarse) {
+      .dpad-grid {
+        grid-template-columns: repeat(3, 62px);
+        grid-template-rows: repeat(3, 62px);
+        gap: 12px;
+      }
+      .pad-btn {
+        width: 62px;
+        height: 62px;
+        font-size: 22px;
+      }
+      .btn, .nav-btn, .mode-seg-btn {
+        min-block-size: 46px;
+      }
     }
 
     /* Progress Bar */
     .progress-bar {
       width: 100%;
       height: 6px;
-      background: #18211d;
-      border: 1px solid #222e28;
+      background: #141715;
+      border: 1px solid var(--line);
       border-radius: 4px;
       overflow: hidden;
     }
     .progress-fill {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, var(--green), var(--blue));
+      background: linear-gradient(90deg, var(--green-bright), var(--blue));
       transition: width 0.25s ease;
     }
 
@@ -446,9 +693,117 @@
       justify-content: space-between;
       gap: 10px;
       font-size: 13px;
+      padding: 3px 0;
     }
     .kv-label { color: var(--muted); font-weight: 500; }
     .kv-val { color: var(--text); font-weight: 600; text-align: right; }
+
+    .details-disclosure {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+      margin-top: 4px;
+    }
+    .details-toggle-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 6px 2px;
+      min-block-size: 36px;
+    }
+    .details-toggle-btn:hover {
+      color: var(--text);
+    }
+
+    /* Native Dialogs (Settings & Mobile Navigation Drawer) */
+    dialog.app-dialog {
+      margin: auto;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--card);
+      color: var(--text);
+      width: min(560px, 94vw);
+      max-height: 90dvb;
+      overflow: auto;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+    }
+    dialog.app-dialog::backdrop {
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(3px);
+    }
+    .dialog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      background: var(--card);
+      z-index: 2;
+    }
+    .dialog-body {
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .setting-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--inset);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .setting-group h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--good);
+    }
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .setting-row label {
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Mobile Drawer Dialog */
+    dialog.mobile-drawer {
+      margin: 0;
+      padding: 0;
+      border: none;
+      width: min(280px, 82vw);
+      height: 100dvb;
+      max-height: 100dvb;
+      background: linear-gradient(180deg, var(--sidebar-top) 0%, var(--sidebar-bot) 100%);
+      color: #ffffff;
+      box-shadow: 12px 0 36px rgba(0, 0, 0, 0.6);
+    }
+    dialog.mobile-drawer::backdrop {
+      background: rgba(0, 0, 0, 0.65);
+    }
+    .drawer-inner {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 18px 14px;
+      gap: 8px;
+    }
 
     /* Field Map Canvas */
     .map-canvas-wrap {
@@ -483,13 +838,13 @@
       padding: 10px 14px;
     }
     .rec-header {
-      border-bottom: 1px solid #1e2923;
+      border-bottom: 1px solid var(--line);
       font-size: 11px;
       font-weight: 700;
       color: var(--muted);
     }
     .rec-item {
-      border-bottom: 1px solid #1e2923;
+      border-bottom: 1px solid var(--line);
       border-radius: 10px;
     }
     .rec-summary {
@@ -497,21 +852,22 @@
       font-size: 13px;
       transition: background 0.12s;
     }
-    .rec-summary:hover { background: #19231e; }
+    .rec-summary:hover { background: var(--card-alt); }
     .rec-item.expanded .rec-summary {
-      background: #1a2720;
-      border: 1px solid #2d4537;
+      background: #1d2b1f;
+      border: 1px solid #355239;
       border-radius: 10px;
     }
     .rec-detail {
       display: none;
       background: var(--inset);
-      border: 1px solid #1c2621;
+      border: 1px solid var(--line);
       border-radius: 12px;
       margin: 4px 0 8px 0;
       padding: 14px 18px;
       gap: 20px;
       align-items: flex-start;
+      flex-wrap: wrap;
     }
     .rec-item.expanded .rec-detail {
       display: flex;
@@ -520,7 +876,7 @@
       width: 130px;
       height: 96px;
       background: #070a08;
-      border: 1px solid #233029;
+      border: 1px solid var(--line);
       border-radius: 10px;
       object-fit: cover;
       flex-shrink: 0;
@@ -529,7 +885,7 @@
     /* Validation Metrics & Table */
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
     }
     .metric-card {
@@ -549,11 +905,11 @@
       font-size: 11px;
       font-weight: 700;
       color: var(--muted);
-      border-bottom: 1px solid #1e2923;
+      border-bottom: 1px solid var(--line);
     }
     .val-table td {
       padding: 10px 12px;
-      border-bottom: 1px solid #1a231e;
+      border-bottom: 1px solid var(--line);
     }
 
     /* Standards Grid */
@@ -566,15 +922,15 @@
       display: inline-flex;
       align-items: center;
       background: var(--inset);
-      border: 1px solid #2a3931;
+      border: 1px solid var(--line);
       border-radius: 10px;
       padding: 2px 4px;
       gap: 4px;
     }
     .stepper button {
-      width: 26px;
-      height: 28px;
-      background: #16201b;
+      width: 30px;
+      height: 30px;
+      background: var(--card-alt);
       color: var(--text);
       border: none;
       border-radius: 6px;
@@ -594,13 +950,14 @@
       font-size: 14px;
       font-weight: 700;
       padding: 0;
+      min-block-size: 30px;
     }
 
     /* Modal */
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.72);
       display: none;
       align-items: center;
       justify-content: center;
@@ -619,111 +976,286 @@
       gap: 14px;
     }
 
-    @media (max-width: 980px) {
-      body { flex-direction: column; }
-      .sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; }
-      .nav-btn { width: auto; }
-      .session-box { display: none; }
-      .control-grid, .standards-grid, .metrics-grid { grid-template-columns: 1fr; }
+    /* Tablet & Mobile Responsive Layout */
+    @media (max-width: 960px) {
+      body {
+        flex-direction: column;
+        padding: 10px;
+        gap: 10px;
+      }
+      .sidebar {
+        display: none;
+      }
+      .mobile-header {
+        display: flex;
+      }
+      .control-grid,
+      .standards-grid {
+        grid-template-columns: 1fr;
+      }
+      .metrics-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .tiles-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .rec-header, .rec-summary {
+        grid-template-columns: 72px 1fr 80px;
+      }
+      .rec-header > :nth-child(n+4),
+      .rec-summary > :nth-child(n+4) {
+        display: none;
+      }
+      .camera-viewport {
+        min-height: 220px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .tiles-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+      .top-alert-strip {
+        font-size: 12px;
+        padding: 8px 12px;
+      }
     }
   </style>
 </head>
 <body>
-  <!-- Sidebar -->
-  <aside class="sidebar">
+  <!-- Skip Link for Keyboard / Screen Reader Accessibility -->
+  <a href="#main-content" class="skip-link visually-hidden">Skip to main content</a>
+
+  <!-- Centralized Polite Live Announcer -->
+  <div id="a11yAnnouncer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Mobile Top Header Bar (visible < 960px) -->
+  <header class="mobile-header">
+    <button type="button" class="mobile-menu-btn" id="mobileMenuOpenBtn" aria-label="Open navigation menu" aria-expanded="false" onclick="openMobileDrawer()">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+      <span style="font-weight:800; font-size:16px;">RiceTrack</span>
+      <span id="mobilePageTitle" style="font-size:12px; opacity:0.85; font-weight:600;">· Control</span>
+    </div>
+    <button type="button" class="mobile-menu-btn" aria-label="Open settings" onclick="openSettingsDialog()">
+      <svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+    </button>
+  </header>
+
+  <!-- Desktop Left Green Sidebar (Matches Reference Screenshot) -->
+  <aside class="sidebar" aria-label="Sidebar">
     <div class="brand">
-      <div class="brand-badge">🌿</div>
+      <div class="brand-badge">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+      </div>
       <div class="brand-title">RiceTrack</div>
     </div>
 
-    <button class="nav-btn active" data-tab="control" onclick="switchTab('control')">
-      <span>📷</span> Rover Control
-    </button>
-    <button class="nav-btn" data-tab="map" onclick="switchTab('map')">
-      <span>🗺️</span> Field Map
-    </button>
-    <button class="nav-btn" data-tab="records" onclick="switchTab('records')">
-      <span>📋</span> Records
-    </button>
-    <button class="nav-btn" data-tab="validation" onclick="switchTab('validation')">
-      <span>📈</span> Validation
-    </button>
-    <button class="nav-btn" data-tab="standards" onclick="switchTab('standards')">
-      <span>⚙️</span> Standards
-    </button>
+    <nav class="sidebar-nav" aria-label="Primary">
+      <button type="button" class="nav-btn active" data-tab="control" aria-current="page" onclick="switchTab('control')">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+        Control
+      </button>
+      <button type="button" class="nav-btn" data-tab="map" onclick="switchTab('map')">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+        Field map
+      </button>
+      <button type="button" class="nav-btn" data-tab="records" onclick="switchTab('records')">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Records
+      </button>
+      <button type="button" class="nav-btn" data-tab="validation" onclick="switchTab('validation')">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Validation
+      </button>
+      <button type="button" class="nav-btn" data-tab="standards" onclick="switchTab('standards')">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+        Standards
+      </button>
+      <button type="button" class="nav-btn" onclick="openSettingsDialog()">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        Settings
+      </button>
+    </nav>
 
     <div class="nav-spacer"></div>
 
     <div class="session-box">
-      <div class="session-title">Session 07 · Web</div>
-      <div class="session-sub">PhilRice Muñoz · ESP32</div>
+      <div class="session-title">Session 07</div>
+      <div class="session-sub">PhilRice Muñoz<br><span id="sessionModeLbl">Offline mode</span></div>
     </div>
   </aside>
 
-  <!-- Main Content -->
-  <main class="main-area">
-    <!-- Top Bar -->
-    <header class="topbar">
-      <div class="topbar-left">
-        <div class="page-title" id="pageTitle">Rover Control</div>
-        <span class="chip green" id="varietyChip">NSIC Rc 222 (Tubigan 18)</span>
+  <!-- Mobile Slide-Out Navigation Drawer (Native <dialog>) -->
+  <dialog id="mobileNavDrawer" class="mobile-drawer" aria-label="Navigation menu">
+    <div class="drawer-inner">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 6px 14px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+          <span style="font-size:18px; font-weight:800;">RiceTrack</span>
+        </div>
+        <button type="button" class="mobile-menu-btn" aria-label="Close navigation menu" onclick="closeMobileDrawer()">✕</button>
       </div>
-      <div class="topbar-right">
-        <a href="/api/manuals/download.pdf" class="btn primary" style="text-decoration:none; padding:5px 12px; font-size:12px;">
-          📘 PDF Manual &amp; Calibration Guide
-        </a>
-        <span class="chip gray" id="imuChip">IMU: Sim/Standby</span>
-        <span class="chip gray" id="motorLinkChip">Motors: Offline</span>
-        <span class="chip gray" id="gpsTopChip">GPS: No fix</span>
-        <span class="chip green" id="batteryChip">🔋 24V Ebike · 92%</span>
+      <nav class="sidebar-nav" aria-label="Mobile navigation">
+        <button type="button" class="nav-btn active" data-tab="control" onclick="switchTab('control'); closeMobileDrawer();">Control</button>
+        <button type="button" class="nav-btn" data-tab="map" onclick="switchTab('map'); closeMobileDrawer();">Field map</button>
+        <button type="button" class="nav-btn" data-tab="records" onclick="switchTab('records'); closeMobileDrawer();">Records</button>
+        <button type="button" class="nav-btn" data-tab="validation" onclick="switchTab('validation'); closeMobileDrawer();">Validation</button>
+        <button type="button" class="nav-btn" data-tab="standards" onclick="switchTab('standards'); closeMobileDrawer();">Standards</button>
+        <button type="button" class="nav-btn" onclick="closeMobileDrawer(); openSettingsDialog();">Settings &amp; Accessibility</button>
+      </nav>
+      <div class="nav-spacer"></div>
+      <div class="session-box">
+        <div class="session-title">Session 07</div>
+        <div class="session-sub">PhilRice Muñoz · ESP32 AP</div>
       </div>
-    </header>
+    </div>
+  </dialog>
 
-    <!-- Global Alert / Auto-Drive Reminder Strip -->
-    <div class="status-banner" id="statusBanner">
-      <span id="statusBannerIcon">ℹ️</span>
+  <!-- Settings & Accessibility Configuration Modal (Native <dialog>) -->
+  <dialog id="settingsDialog" class="app-dialog" aria-labelledby="settingsDialogTitle">
+    <div class="dialog-header">
+      <h2 id="settingsDialogTitle" style="font-size:16px; font-weight:800;">Settings &amp; Accessibility</h2>
+      <button type="button" class="btn" style="padding:6px 10px; min-block-size:36px;" aria-label="Close settings" onclick="closeSettingsDialog()">✕</button>
+    </div>
+    <div class="dialog-body">
+      <!-- Accessibility Preferences -->
+      <div class="setting-group">
+        <h3>Accessibility &amp; Display</h3>
+        <div class="setting-row">
+          <label for="chkHighContrast">High-Contrast Mode (Outdoor Sun)</label>
+          <input type="checkbox" id="chkHighContrast" onchange="applyPrefContrast(this.checked)" />
+        </div>
+        <div class="setting-row">
+          <label for="selFontSize">Text Size</label>
+          <select id="selFontSize" onchange="applyPrefFont(this.value)">
+            <option value="normal">Normal (100%)</option>
+            <option value="large">Large (115%)</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label for="chkReducedMotion">Reduce Animations &amp; Motion</label>
+          <input type="checkbox" id="chkReducedMotion" onchange="applyPrefMotion(this.checked)" />
+        </div>
+        <div class="setting-row">
+          <label for="chkHaptic">Haptic Vibration Feedback (Mobile)</label>
+          <input type="checkbox" id="chkHaptic" checked onchange="applyPrefHaptic(this.checked)" />
+        </div>
+      </div>
+
+      <!-- Rover, Camera & Compass Configuration -->
+      <div class="setting-group">
+        <h3>Rover, Camera &amp; MPU-6050 Compass</h3>
+        <div class="setting-row">
+          <label for="camSelector">Camera Source</label>
+          <select id="camSelector" onchange="changeCamera(this.value)">
+            <option value="0">Pi / Camera 0</option>
+            <option value="1">Camera 1</option>
+            <option value="2">Camera 2</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label for="chkContinuousDrive">Continuous Drive Mode (Click-to-Run)</label>
+          <input type="checkbox" id="chkContinuousDrive" checked onchange="toggleContinuousDrive(this.checked)" />
+        </div>
+        <div class="setting-row">
+          <span>Canopy LCC Overlay</span>
+          <button type="button" class="btn seg active" id="lccOverlayBtn" onclick="toggleLccOverlay()">LCC Overlay: ON</button>
+        </div>
+        <div class="setting-row" style="flex-wrap:wrap; gap:6px;">
+          <span>MPU-6050 Compass Actions</span>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="btn" onclick="sendEsp32Quick('reset_yaw')">↺ Zero</button>
+            <button type="button" class="btn" onclick="sendEsp32Quick('flip_gyro')">🔄 Flip Sign</button>
+            <button type="button" class="btn" onclick="sendEsp32Turn('left', 90)">↶ 90° L</button>
+            <button type="button" class="btn" onclick="sendEsp32Turn('right', 90)">↷ 90° R</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Documentation & Shortcuts -->
+      <div class="setting-group">
+        <h3>Manual &amp; Keyboard Shortcuts</h3>
+        <div style="font-size:12px; color:var(--muted); line-height:1.6;">
+          <b>W / A / S / D</b> or <b>Arrows</b>: Steer Rover · <b>Space</b>: Stop · <b>T</b>: Auto Train · <b>E</b>: Evaluate
+        </div>
+        <a href="/api/manuals/download.pdf" class="btn primary" style="text-decoration:none;">
+          📘 Download PDF Manual &amp; Calibration Guide
+        </a>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Main Content -->
+  <main class="main-area" id="main-content" tabindex="-1">
+    <h1 class="visually-hidden" id="pageTitle">Control</h1>
+
+    <!-- Top Sensor Alert Strip (Matches Screenshot's sleek top red/green banner) -->
+    <div class="top-alert-strip" id="topAlertStrip" role="alert">
+      <div class="top-alert-left">
+        <span id="topAlertIcon" aria-hidden="true">ⓘ</span>
+        <span id="topAlertText">No IMU sensors detected</span>
+      </div>
+      <div class="top-alert-chips">
+        <span class="chip green" id="varietyChip">NSIC Rc 222</span>
+        <span class="chip gray" id="imuChip" style="display:none;">IMU: Standby</span>
+        <span class="chip gray" id="motorLinkChip">ESP32: Checking</span>
+        <span class="chip gray" id="gpsTopChip" style="display:none;">GPS: No fix</span>
+        <span class="chip green" id="batteryChip">🔋 24V · 92%</span>
+      </div>
+    </div>
+
+    <!-- Global Auto-Drive / Tilt Alert Strip -->
+    <div class="status-banner" id="statusBanner" role="status">
+      <span id="statusBannerIcon" aria-hidden="true">ℹ️</span>
       <span id="statusBannerText"></span>
     </div>
 
     <!-- Scene Alert Strip: Human (red) / Object (orange) / Plant (green) -->
-    <div class="status-banner show gray" id="sceneBanner">
-      <span id="sceneBannerIcon">👁️</span>
+    <div class="status-banner gray" id="sceneBanner" role="status">
+      <span id="sceneBannerIcon" aria-hidden="true">👁️</span>
       <span id="sceneBannerText">Scene Alert · waiting for camera or photo</span>
     </div>
 
-    <!-- TAB 1: ROVER CONTROL -->
-    <section class="tab-pane active" id="tab-control">
+    <!-- TAB 1: ROVER CONTROL (Matches Reference Screenshot 2-Column Layout) -->
+    <section class="tab-pane active" id="tab-control" aria-label="Rover Control">
       <div class="control-grid">
-        <!-- Left Column: Camera + Attitude Tiles -->
+        <!-- Left Column: Pi Camera Viewport Card -->
         <div class="card">
-          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            <select id="camSelector" onchange="changeCamera(this.value)">
-              <option value="0">Camera 0</option>
-              <option value="1">Camera 1</option>
-              <option value="2">Camera 2</option>
-            </select>
-
-            <button class="btn seg active" id="lccOverlayBtn" onclick="toggleLccOverlay()">
-              LCC Overlay
-            </button>
-
-            <div style="flex:1;"></div>
-            <span class="chip gray" id="sourceChip">Standby</span>
+          <div class="camera-card-header">
+            <span class="cam-label-green" id="camCardTitle">Pi camera</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="uploadPhotoFile(this)" />
+              <button type="button" class="btn" id="uploadBtn" style="padding:4px 10px; min-block-size:32px; font-size:12px;" onclick="onUploadBtnClick()">
+                📤 Upload
+              </button>
+              <span class="chip green" id="sourceChip">Healthy</span>
+            </div>
           </div>
 
           <div class="camera-viewport" id="cameraViewport" onclick="onViewportClick()" title="Click to toggle between original and segmented LCC overlay">
-            <img id="cameraStreamImg" alt="Camera Feed" />
+            <img id="cameraStreamImg" alt="Live RiceTrack camera feed" />
             <div class="camera-placeholder" id="cameraPlaceholder">
-              <div style="font-size:28px;">📷</div>
-              <div style="font-size:14px; font-weight:700;">No live camera stream active</div>
+              <div style="font-size:30px;" aria-hidden="true">📷</div>
+              <div style="font-size:14px; font-weight:700;">Camera preview ready</div>
               <div style="font-size:12px; color:var(--muted);">
-                Connect a USB/CSI camera for live detection, or click <b>Upload Photo</b>
+                Click <b>Start Live View</b> below or <b>Upload</b> a field photo
               </div>
             </div>
             <div class="hud-badge" id="hudBadge"></div>
           </div>
 
-          <div class="tiles-row">
+          <button type="button" class="live-view-bar" id="liveViewToggleBtn" onclick="toggleLiveView()">
+            Start Live View
+          </button>
+
+          <!-- Compact Live Telemetry Attitude Strip -->
+          <div class="tiles-row" aria-label="Live sensor attitude">
             <div class="att-tile" id="rollTile">
               <div class="att-name">ROLL</div>
               <div class="att-val" id="rollVal">0°</div>
@@ -733,7 +1265,7 @@
               <div class="att-val" id="pitchVal">0°</div>
             </div>
             <div class="att-tile" id="yawTile">
-              <div class="att-name">YAW / TURN</div>
+              <div class="att-name">COMPASS</div>
               <div class="att-val" id="yawVal" style="color:var(--good);">0°</div>
             </div>
             <div class="att-tile" id="speedTile">
@@ -747,179 +1279,188 @@
           </div>
         </div>
 
-        <!-- Right Column: Drive Pad + Telemetry -->
-        <div style="display:flex; flex-direction:column; gap:10px;">
+        <!-- Right Column: Top (Manual/Automatic Control & Evaluate) + Bottom (Capturing) -->
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <!-- TOP CARD: Manual / Automatic Segmented Control + Circular D-Pad + Evaluate -->
           <div class="card">
-            <div class="kv-row">
-              <span style="font-size:15px; font-weight:800;">Rover &amp; Train Drive</span>
-              <span class="chip gray" id="driveModeChip">MANUAL</span>
+            <div style="display:flex; align-items:center; justify-content:center; position:relative;">
+              <div class="mode-segmented" role="group" aria-label="Drive control mode">
+                <button type="button" class="mode-seg-btn active" id="btnModeManual" aria-pressed="true" onclick="setControlPanelMode('manual')">Manual</button>
+                <button type="button" class="mode-seg-btn" id="btnModeAutomatic" aria-pressed="false" onclick="setControlPanelMode('automatic')">Automatic</button>
+              </div>
+              <span class="chip gray" id="driveModeChip" style="position:absolute; right:0; display:none;">MANUAL</span>
             </div>
 
-            <div class="inset-box">
-              <div style="display:flex; gap:8px;">
-                <button class="btn" id="autoDriveBtn" style="flex:1;" onclick="toggleAutoDrive()">
-                  ▶ Auto Train (5s)
+            <!-- MANUAL MODE PANEL (Matches Screenshot's Clean Circular D-Pad + Cancel/Evaluate) -->
+            <div id="manualModePanel" style="display:flex; flex-direction:column; gap:12px;">
+              <div class="dpad-wrap">
+                <div class="dpad-grid" role="group" aria-label="Directional drive pad">
+                  <div></div>
+                  <button type="button" class="pad-btn" id="pad-forward" aria-label="Drive Forward"
+                    onmousedown="sendDrive('forward')" onmouseup="releaseDrive()" onmouseleave="releaseDrive()"
+                    ontouchstart="sendDrive('forward'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();" ontouchcancel="releaseDrive();">↑</button>
+                  <div></div>
+
+                  <button type="button" class="pad-btn" id="pad-left" aria-label="Turn Left"
+                    onmousedown="sendDrive('left')" onmouseup="releaseDrive()" onmouseleave="releaseDrive()"
+                    ontouchstart="sendDrive('left'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();" ontouchcancel="releaseDrive();">←</button>
+                  <button type="button" class="pad-btn" id="pad-stop" aria-label="Stop Rover" onclick="sendDrive('stop')">▢</button>
+                  <button type="button" class="pad-btn" id="pad-right" aria-label="Turn Right"
+                    onmousedown="sendDrive('right')" onmouseup="releaseDrive()" onmouseleave="releaseDrive()"
+                    ontouchstart="sendDrive('right'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();" ontouchcancel="releaseDrive();">→</button>
+
+                  <div></div>
+                  <button type="button" class="pad-btn" id="pad-backward" aria-label="Drive Backward"
+                    onmousedown="sendDrive('backward')" onmouseup="releaseDrive()" onmouseleave="releaseDrive()"
+                    ontouchstart="sendDrive('backward'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();" ontouchcancel="releaseDrive();">↓</button>
+                  <div></div>
+                </div>
+              </div>
+
+              <!-- Side-by-side Cancel & Evaluate buttons (Matches Screenshot) -->
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:4px;">
+                <button type="button" class="btn" id="cancelBtn" onclick="onCancelAction()">
+                  ✕ Cancel
                 </button>
-                <select id="autoModeSelect" style="flex:1;" onchange="changeAutoMode(this.value)">
-                  <option value="train_pulse">Every 5s Run</option>
-                  <option value="stop_capture">5s + Sample</option>
-                </select>
+                <button type="button" class="btn primary" id="captureBtn" onclick="onCaptureEvaluateClick()">
+                  Evaluate
+                </button>
               </div>
-              <div id="autoReminderLbl" style="font-size:11px; font-weight:600; color:var(--muted);">
-                Train Mode Standby · Runs every 5s when Auto Drive is ON
-              </div>
-              <div class="progress-bar">
-                <div class="progress-fill" id="autoCycleFill"></div>
+
+              <div id="evalSubStatus" style="text-align:center; font-size:11.5px; color:var(--muted);">
+                Ready to capture and evaluate. View saved reports in the Records tab.
               </div>
             </div>
 
-            <div class="dpad-wrap">
-              <div class="dpad-grid">
-                <div></div>
-                <button class="pad-btn" id="pad-forward"
-                  onmousedown="sendDrive('forward')" onmouseup="releaseDrive()" onmouseleave="releaseDrive()"
-                  ontouchstart="sendDrive('forward'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();" ontouchcancel="releaseDrive();"
-                  title="Forward (W / Up)">↑</button>
-                <div></div>
-
-                <button class="pad-btn" id="pad-left"
-                  onmousedown="sendDrive('left')" onmouseup="releaseDrive()" onmouseleave="releaseDrive()"
-                  ontouchstart="sendDrive('left'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();" ontouchcancel="releaseDrive();"
-                  title="Left (A / Left)">←</button>
-                <button class="pad-btn" id="pad-stop" onclick="sendDrive('stop')" title="Stop (Space)">▢</button>
-                <button class="pad-btn" id="pad-right"
-                  onmousedown="sendDrive('right')" onmouseup="releaseDrive()" onmouseleave="releaseDrive()"
-                  ontouchstart="sendDrive('right'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();" ontouchcancel="releaseDrive();"
-                  title="Right (D / Right)">→</button>
-
-                <div></div>
-                <button class="pad-btn" id="pad-backward"
-                  onmousedown="sendDrive('backward')" onmouseup="releaseDrive()" onmouseleave="releaseDrive()"
-                  ontouchstart="sendDrive('backward'); event.preventDefault();" ontouchend="releaseDrive(); event.preventDefault();" ontouchcancel="releaseDrive();"
-                  title="Backward (S / Down)">↓</button>
-                <div></div>
+            <!-- AUTOMATIC MODE PANEL (Auto Train + Instructed Roving) -->
+            <div id="automaticModePanel" style="display:none; flex-direction:column; gap:12px;">
+              <div class="inset-box">
+                <div style="display:flex; gap:8px;">
+                  <button type="button" class="btn" id="autoDriveBtn" style="flex:1;" onclick="toggleAutoDrive()">
+                    ▶ Auto Train (5s)
+                  </button>
+                  <select id="autoModeSelect" aria-label="Auto train mode" style="flex:1;" onchange="changeAutoMode(this.value)">
+                    <option value="train_pulse">Every 5s Run</option>
+                    <option value="stop_capture">5s + Sample</option>
+                  </select>
+                </div>
+                <div id="autoReminderLbl" style="font-size:11px; font-weight:600; color:var(--muted);">
+                  Train Mode Standby · Runs every 5s when Auto Drive is ON
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" id="autoCycleFill"></div>
+                </div>
               </div>
-            </div>
 
-            <div style="text-align:center; margin:8px 0 4px;">
-              <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; color:var(--text); background:var(--surface2); padding:5px 12px; border-radius:6px; border:1px solid var(--border);">
-                <input type="checkbox" id="chkContinuousDrive" onchange="toggleContinuousDrive(this.checked)" checked>
-                <span><b>Continuous Mode</b> (Click to run, Click Stop to halt)</span>
-              </label>
-            </div>
+              <!-- INSTRUCTED SEMI-AUTONOMOUS ROVING -->
+              <div id="instructedRovingCard" style="display:flex; flex-direction:column; gap:8px;">
+                <div class="kv-row">
+                  <span style="font-size:13.5px; font-weight:800; color:var(--good);">🌾 Instructed Roving (MPU-6050)</span>
+                  <span class="chip gray" id="instructedStatusChip">STANDBY</span>
+                </div>
 
-            <div style="text-align:center; font-size:11px; color:var(--muted); margin-top:4px;">
-              WASD / Arrows / Pad steer in Manual &amp; Auto (5s) · T Auto · Space Stop
-            </div>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                  <label for="instructedPresetSelect" style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Mission Routine</label>
+                  <select id="instructedPresetSelect" style="width:100%;" onchange="onPresetSelected(this.value)">
+                    <option value="preset_4step_inspection">Preset 1: 4-Step Field Mission (5m R → 10m L → 4m L → Return)</option>
+                    <option value="preset_u_turn_sweep">Preset 2: U-Turn Canopy Sweep (8m R → 4m R → 8m → Return)</option>
+                    <option value="preset_straight_sampling">Preset 3: Linear Row Sampling (5m → 5m → 5m → Return)</option>
+                    <option value="custom">⚙ Custom Step-by-Step Builder</option>
+                  </select>
+                </div>
 
-            <div style="display:flex; gap:10px; margin-top:4px;">
-              <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="uploadPhotoFile(this)" />
-              <button class="btn" id="uploadBtn" style="flex:1;" onclick="onUploadBtnClick()">
-                📤 Upload Photo
-              </button>
-              <button class="btn primary" id="captureBtn" style="flex:1;" onclick="onCaptureEvaluateClick()">
-                Capture &amp; Evaluate
-              </button>
+                <div id="instructedStepsContainer" style="display:flex; flex-direction:column; gap:6px;"></div>
+
+                <div id="stepBuilderControls" style="display:none; gap:6px;">
+                  <button type="button" class="btn" style="flex:1; font-size:11px; min-block-size:34px;" onclick="addCustomStep()">+ Add Leg</button>
+                  <button type="button" class="btn" style="flex:1; font-size:11px; min-block-size:34px;" onclick="addReturnStep()">↩ Return</button>
+                  <button type="button" class="btn" style="flex:1; font-size:11px; min-block-size:34px;" onclick="resetStepsToDefault()">↺ Reset</button>
+                </div>
+
+                <div id="instructedLiveBox" class="inset-box" style="display:none; background:#122416; border-left:3px solid var(--good);">
+                  <div class="kv-row">
+                    <span id="instructedPhaseText" style="font-weight:700; color:var(--good); font-size:12px;">Move 1 of 4</span>
+                    <span id="instructedGpsTag" style="font-size:10px; font-family:monospace; color:var(--muted);">GPS: --</span>
+                  </div>
+                  <div class="progress-bar">
+                    <div class="progress-fill" id="instructedProgressFill" style="width:0%;"></div>
+                  </div>
+                  <div class="kv-row" style="font-size:11px;">
+                    <span id="instructedTimerText" style="color:var(--text);">Elapsed: 0s</span>
+                    <span id="instructedYawText" style="color:var(--good); font-weight:700;">MPU Yaw: 0.0°</span>
+                  </div>
+                </div>
+
+                <div style="display:flex; gap:8px;">
+                  <button type="button" class="btn primary" id="startInstructedBtn" style="flex:2; font-weight:800;" onclick="startInstructedMission()">
+                    🚀 Start Instructed Roving
+                  </button>
+                  <button type="button" class="btn" id="abortInstructedBtn" style="flex:1; font-weight:800; display:none; background:var(--red-line); border-color:var(--red-line); color:#fff;" onclick="abortInstructedMission()">
+                    ⛔ Abort
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- INSTRUCTED SEMI-AUTONOMOUS ROVING -->
-          <div class="card" id="instructedRovingCard" style="border: 1px solid #1e3a2b;">
-            <div class="kv-row">
-              <span style="font-size:15px; font-weight:800; color:var(--good);">🌾 Instructed Roving (Neo-6M + MPU-6050)</span>
-              <span class="chip gray" id="instructedStatusChip">STANDBY</span>
-            </div>
-            <div style="font-size:12px; color:var(--muted); margin-top:-4px;">
-              Semi-autonomous route execution using MPU-6050 90° heading turns &amp; camera crop health inspection.
-            </div>
-
-            <!-- Mission Routine Select -->
-            <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
-              <label style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Select Mission Routine:</label>
-              <select id="instructedPresetSelect" style="width:100%;" onchange="onPresetSelected(this.value)">
-                <option value="preset_4step_inspection">Preset 1: 4-Step Field Mission (5m R → 10m L → 4m L → Return)</option>
-                <option value="preset_u_turn_sweep">Preset 2: U-Turn Canopy Sweep (8m R → 4m R → 8m → Return)</option>
-                <option value="preset_straight_sampling">Preset 3: Linear Row Sampling (5m → 5m → 5m → Return)</option>
-                <option value="custom">⚙ Custom Step-by-Step Builder</option>
-              </select>
-            </div>
-
-            <!-- Steps Container with Select Dropdowns -->
-            <div id="instructedStepsContainer" style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
-            </div>
-
-            <!-- Step Builder Add/Reset Controls -->
-            <div id="stepBuilderControls" style="display:none; gap:6px; margin-top:2px;">
-              <button class="btn" style="flex:1; font-size:11px;" onclick="addCustomStep()">+ Add Leg</button>
-              <button class="btn" style="flex:1; font-size:11px;" onclick="addReturnStep()">↩ Add Return</button>
-              <button class="btn" style="flex:1; font-size:11px;" onclick="resetStepsToDefault()">↺ Reset</button>
-            </div>
-
-            <!-- Live Mission Progress Monitor -->
-            <div id="instructedLiveBox" class="inset-box" style="display:none; margin-top:4px; background:#0f241a; border-left:3px solid var(--good);">
-              <div class="kv-row">
-                <span id="instructedPhaseText" style="font-weight:700; color:var(--good); font-size:12px;">Move 1 of 4: Driving 5.0m</span>
-                <span id="instructedGpsTag" style="font-size:10px; font-family:monospace; color:var(--muted);">GPS: --</span>
-              </div>
-              <div class="progress-bar" style="margin:4px 0;">
-                <div class="progress-fill" id="instructedProgressFill" style="width:0%;"></div>
-              </div>
-              <div class="kv-row" style="font-size:11px;">
-                <span id="instructedTimerText" style="color:var(--text);">Elapsed: 0s / 15s (3.0s/m)</span>
-                <span id="instructedYawText" style="color:var(--good); font-weight:700;">MPU Yaw: 0.0°</span>
-              </div>
-            </div>
-
-            <!-- Start / Abort Action Buttons -->
-            <div style="display:flex; gap:8px; margin-top:6px;">
-              <button class="btn primary" id="startInstructedBtn" style="flex:2; font-weight:800; padding:9px 14px;" onclick="startInstructedMission()">
-                🚀 Start Instructed Roving
-              </button>
-              <button class="btn danger" id="abortInstructedBtn" style="flex:1; font-weight:800; display:none; background:var(--red-line); border-color:var(--red-line); color:#fff;" onclick="abortInstructedMission()">
-                ⛔ Abort Mission
-              </button>
-            </div>
-          </div>
-
+          <!-- BOTTOM CARD: Capturing & Telemetry (Matches Reference Screenshot!) -->
           <div class="card">
-            <div class="kv-row">
-              <span style="font-size:15px; font-weight:800;">Telemetry</span>
-              <span class="chip green" id="captureIdChip" style="display:none;"></span>
+            <div class="kv-row" style="margin-bottom:2px;">
+              <h2 style="font-size:15px; font-weight:800;">Capturing</h2>
+              <span class="chip green" id="captureIdChip" style="display:none;">A-01-19</span>
             </div>
+
             <div class="kv-row">
-              <span class="kv-label">Camera</span>
-              <span class="kv-val" id="telCamera">Disconnected</span>
+              <span class="kv-label">Image</span>
+              <span class="kv-val" id="telCamera" style="color:var(--good);">Ready</span>
             </div>
+
             <div class="kv-row">
-              <span class="kv-label">ESP32 Link</span>
-              <span class="kv-val" id="telEsp32Link">Disconnected</span>
+              <span class="kv-label">Tilt</span>
+              <span class="kv-val" id="telTiltSummary" style="color:var(--red-text);">No IMU detected</span>
             </div>
-            <div class="kv-row">
-              <span class="kv-label">Left Motor Driver</span>
-              <span class="kv-val" id="telLeftMotor">--</span>
-            </div>
-            <div class="kv-row">
-              <span class="kv-label">Right Motor Driver</span>
-              <span class="kv-val" id="telRightMotor">--</span>
-            </div>
-            <div class="kv-row">
-              <span class="kv-label">Leaf Color</span>
-              <span class="kv-val" id="telLeafColor">--</span>
-            </div>
+
             <div class="kv-row">
               <span class="kv-label">GPS</span>
-              <span class="kv-val" id="telGps">No fix</span>
+              <span class="kv-val" id="telGps" style="color:var(--red-text);">No GPS detected</span>
             </div>
-            <div class="progress-bar">
-              <div class="progress-fill" id="gpsFill" style="width:0%;"></div>
-            </div>
-            <div class="kv-row">
-              <span class="kv-label">Auto Path Log</span>
-              <span class="kv-val" id="telAutoPath" style="font-size:12px; color:var(--muted);">Standby (auto_drive_path.json)</span>
-            </div>
+
             <div class="kv-row" style="align-items:flex-start;">
-              <span class="kv-label">Summary</span>
-              <span class="kv-val" id="telSummary" style="font-size:12px; color:var(--muted); max-width:68%;">--</span>
+              <span class="kv-label">Analysis</span>
+              <span class="kv-val" id="telSummary" style="font-size:12px; color:var(--muted); max-width:68%;">Ready · Results will appear in Records tab.</span>
+            </div>
+
+            <!-- Collapsible Advanced Hardware Diagnostics -->
+            <div class="details-disclosure">
+              <button type="button" class="details-toggle-btn" id="btnHwDetails" aria-expanded="false" aria-controls="hwDetailsBox" onclick="toggleHwDetails()">
+                <span>Hardware &amp; ESP32 Diagnostics</span>
+                <span id="hwDetailsChevron" aria-hidden="true">▾</span>
+              </button>
+              <div id="hwDetailsBox" style="display:none; flex-direction:column; gap:6px; padding-top:6px;">
+                <div class="kv-row">
+                  <span class="kv-label">ESP32 Link</span>
+                  <span class="kv-val" id="telEsp32Link">Disconnected</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-label">Left Motor Driver</span>
+                  <span class="kv-val" id="telLeftMotor">--</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-label">Right Motor Driver</span>
+                  <span class="kv-val" id="telRightMotor">--</span>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-label">Leaf Color</span>
+                  <span class="kv-val" id="telLeafColor">--</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" id="gpsFill" style="width:0%;"></div>
+                </div>
+                <div class="kv-row">
+                  <span class="kv-label">Auto Path Log</span>
+                  <span class="kv-val" id="telAutoPath" style="font-size:11.5px; color:var(--muted);">Standby</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1200,22 +1741,212 @@
       { id: "A-02-06", x: 0.840, y: 0.79, bad: true,  r: 9.0, acc: 1.8, when: "11:53 AM", detail: "Plot A-04 · 96.2 cm · hue 42 · maturing panicles" }
     ];
 
+    let uiPrefs = {
+      contrast: localStorage.getItem("rt_contrast") || "normal",
+      font: localStorage.getItem("rt_font") || "normal",
+      motion: localStorage.getItem("rt_motion") || "normal",
+      haptic: localStorage.getItem("rt_haptic") !== "false",
+      liveViewPaused: false,
+      controlPanelMode: "manual"
+    };
+
+    function announceStatus(msg) {
+      const el = document.getElementById("a11yAnnouncer");
+      if (!el) return;
+      el.textContent = "";
+      setTimeout(() => { el.textContent = msg; }, 30);
+    }
+
+    function triggerHaptic(ms = 18) {
+      if (uiPrefs.haptic && navigator.vibrate) {
+        try { navigator.vibrate(ms); } catch (e) {}
+      }
+    }
+
+    function applyPrefContrast(enabled) {
+      uiPrefs.contrast = enabled ? "high" : "normal";
+      localStorage.setItem("rt_contrast", uiPrefs.contrast);
+      document.documentElement.dataset.contrast = enabled ? "high" : "";
+    }
+
+    function applyPrefFont(val) {
+      uiPrefs.font = val;
+      localStorage.setItem("rt_font", val);
+      document.documentElement.dataset.font = val === "large" ? "large" : "";
+    }
+
+    function applyPrefMotion(enabled) {
+      uiPrefs.motion = enabled ? "reduced" : "normal";
+      localStorage.setItem("rt_motion", uiPrefs.motion);
+      document.documentElement.dataset.motion = enabled ? "reduced" : "";
+    }
+
+    function applyPrefHaptic(enabled) {
+      uiPrefs.haptic = enabled;
+      localStorage.setItem("rt_haptic", enabled ? "true" : "false");
+    }
+
+    function initUiPrefs() {
+      const chkC = document.getElementById("chkHighContrast");
+      const selF = document.getElementById("selFontSize");
+      const chkM = document.getElementById("chkReducedMotion");
+      const chkH = document.getElementById("chkHaptic");
+      if (chkC) chkC.checked = uiPrefs.contrast === "high";
+      if (selF) selF.value = uiPrefs.font;
+      if (chkM) chkM.checked = uiPrefs.motion === "reduced";
+      if (chkH) chkH.checked = uiPrefs.haptic;
+      applyPrefContrast(uiPrefs.contrast === "high");
+      applyPrefFont(uiPrefs.font);
+      applyPrefMotion(uiPrefs.motion === "reduced");
+
+      // Light-dismiss dialogs on backdrop click
+      ["mobileNavDrawer", "settingsDialog"].forEach(id => {
+        const dlg = document.getElementById(id);
+        if (dlg) {
+          dlg.addEventListener("click", e => {
+            if (e.target === dlg) dlg.close();
+          });
+        }
+      });
+    }
+
+    function openMobileDrawer() {
+      const dlg = document.getElementById("mobileNavDrawer");
+      const btn = document.getElementById("mobileMenuOpenBtn");
+      if (dlg && !dlg.open) {
+        dlg.showModal();
+        if (btn) btn.setAttribute("aria-expanded", "true");
+      }
+    }
+
+    function closeMobileDrawer() {
+      const dlg = document.getElementById("mobileNavDrawer");
+      const btn = document.getElementById("mobileMenuOpenBtn");
+      if (dlg && dlg.open) dlg.close();
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    }
+
+    function openSettingsDialog() {
+      const dlg = document.getElementById("settingsDialog");
+      if (dlg && !dlg.open) dlg.showModal();
+    }
+
+    function closeSettingsDialog() {
+      const dlg = document.getElementById("settingsDialog");
+      if (dlg && dlg.open) dlg.close();
+    }
+
+    function setControlPanelMode(mode) {
+      uiPrefs.controlPanelMode = mode;
+      const isManual = mode === "manual";
+      const btnM = document.getElementById("btnModeManual");
+      const btnA = document.getElementById("btnModeAutomatic");
+      const panM = document.getElementById("manualModePanel");
+      const panA = document.getElementById("automaticModePanel");
+      if (btnM) {
+        btnM.classList.toggle("active", isManual);
+        btnM.setAttribute("aria-pressed", isManual ? "true" : "false");
+      }
+      if (btnA) {
+        btnA.classList.toggle("active", !isManual);
+        btnA.setAttribute("aria-pressed", !isManual ? "true" : "false");
+      }
+      if (panM) panM.style.display = isManual ? "flex" : "none";
+      if (panA) panA.style.display = isManual ? "none" : "flex";
+      triggerHaptic(15);
+      announceStatus(isManual ? "Manual drive mode selected" : "Automatic roving mode selected");
+    }
+
+    function toggleLiveView() {
+      const btn = document.getElementById("liveViewToggleBtn");
+      const img = document.getElementById("cameraStreamImg");
+      const ph = document.getElementById("cameraPlaceholder");
+      if (state.hasStillImage) {
+        clearStillImage();
+        uiPrefs.liveViewPaused = false;
+        if (btn) btn.textContent = "Stop Live View";
+        return;
+      }
+      uiPrefs.liveViewPaused = !uiPrefs.liveViewPaused;
+      if (uiPrefs.liveViewPaused) {
+        if (img) { img.src = ""; img.style.display = "none"; }
+        if (ph) ph.style.display = "flex";
+        if (btn) btn.textContent = "Start Live View";
+        announceStatus("Live camera view paused");
+      } else {
+        if (img) {
+          img.src = `/api/video_feed?overlay=${state.lccOverlay ? 1 : 0}&t=${Date.now()}`;
+          img.style.display = "block";
+        }
+        if (ph) ph.style.display = "none";
+        if (btn) btn.textContent = "Stop Live View";
+        announceStatus("Live camera view started");
+      }
+      triggerHaptic(15);
+    }
+
+    function onCancelAction() {
+      triggerHaptic(20);
+      if (state.hasStillImage) {
+        clearStillImage();
+        const sub = document.getElementById("evalSubStatus");
+        if (sub) sub.textContent = "Returned to live view. Ready to capture.";
+      } else {
+        sendDrive("stop");
+        const sub = document.getElementById("evalSubStatus");
+        if (sub) sub.textContent = "Motors stopped. Standby.";
+      }
+    }
+
+    function toggleHwDetails() {
+      const box = document.getElementById("hwDetailsBox");
+      const btn = document.getElementById("btnHwDetails");
+      const chv = document.getElementById("hwDetailsChevron");
+      if (!box || !btn) return;
+      const open = box.style.display === "none";
+      box.style.display = open ? "flex" : "none";
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (chv) chv.textContent = open ? "▴" : "▾";
+    }
+
+    function sendEsp32Quick(act) {
+      triggerHaptic(15);
+      fetch("http://192.168.4.1/cmd?act=" + encodeURIComponent(act)).catch(() => {});
+      announceStatus("Sent " + act + " command to ESP32");
+    }
+
+    function sendEsp32Turn(dir, deg) {
+      triggerHaptic(20);
+      fetch(`http://192.168.4.1/cmd?act=turn_deg&dir=${encodeURIComponent(dir)}&deg=${deg}`).catch(() => {});
+      announceStatus(`Turning ${dir} ${deg} degrees`);
+    }
+
     function switchTab(tabName) {
       state.activeTab = tabName;
       document.querySelectorAll(".nav-btn").forEach(b => {
-        b.classList.toggle("active", b.dataset.tab === tabName);
+        const isActive = b.dataset.tab === tabName;
+        b.classList.toggle("active", isActive);
+        if (isActive) {
+          b.setAttribute("aria-current", "page");
+        } else {
+          b.removeAttribute("aria-current");
+        }
       });
       document.querySelectorAll(".tab-pane").forEach(p => {
         p.classList.toggle("active", p.id === "tab-" + tabName);
       });
       const titles = {
-        control: "Rover Control",
+        control: "Control",
         map: "Field Map",
-        records: "Inspection Records",
-        validation: "Validation & Accuracy",
-        standards: "Standards & Calibration"
+        records: "Records",
+        validation: "Validation",
+        standards: "Standards"
       };
-      document.getElementById("pageTitle").textContent = titles[tabName] || "RiceTrack";
+      const titleText = titles[tabName] || "RiceTrack";
+      document.getElementById("pageTitle").textContent = titleText;
+      document.title = `${titleText} | RiceTrack`;
+      const mobTitle = document.getElementById("mobilePageTitle");
+      if (mobTitle) mobTitle.textContent = "· " + titleText;
 
       if (tabName === "map") {
         refreshFieldMapData();
@@ -1226,9 +1957,12 @@
       } else if (tabName === "standards") {
         drawHueBar();
       }
+      announceStatus("Switched to " + titleText);
     }
 
     async function initApp() {
+      initUiPrefs();
+
       // Load initial standards
       try {
         const res = await fetch("/api/standards");
@@ -1347,6 +2081,29 @@
         document.getElementById("imuChip").textContent = t.imu_ok ? "IMU: MPU-6050 OK" : "IMU: Sim/Standby";
         document.getElementById("imuChip").className = "chip " + (t.imu_ok ? "green" : "gray");
 
+        // Sync top screenshot-style alert banner & Capturing Tilt row
+        const topStrip = document.getElementById("topAlertStrip");
+        const topText = document.getElementById("topAlertText");
+        const tiltSum = document.getElementById("telTiltSummary");
+        const sessMode = document.getElementById("sessionModeLbl");
+        if (t.imu_ok) {
+          if (rollDanger || pitchDanger) {
+            if (topStrip) topStrip.className = "top-alert-strip";
+            if (topText) topText.textContent = `Tilt warning: Roll ${Math.round(t.roll)}° / Pitch ${Math.round(t.pitch)}° exceeds ${tiltLimit}° limit`;
+            if (tiltSum) { tiltSum.textContent = `Roll ${Math.round(t.roll)}° · Pitch ${Math.round(t.pitch)}°`; tiltSum.style.color = "var(--red-text)"; }
+          } else {
+            if (topStrip) topStrip.className = "top-alert-strip ok";
+            if (topText) topText.textContent = `MPU-6050 Compass Active · Heading ${Math.round(t.yaw || 0)}°`;
+            if (tiltSum) { tiltSum.textContent = `✓ Level (R ${Math.round(t.roll)}° · P ${Math.round(t.pitch)}°)`; tiltSum.style.color = "var(--good)"; }
+          }
+          if (sessMode) sessMode.textContent = "ESP32 Connected";
+        } else {
+          if (topStrip) topStrip.className = "top-alert-strip";
+          if (topText) topText.textContent = "No IMU sensors detected";
+          if (tiltSum) { tiltSum.textContent = "No IMU detected"; tiltSum.style.color = "var(--red-text)"; }
+          if (sessMode) sessMode.textContent = "Offline mode";
+        }
+
         // ESP32 serial link + left/right motor driver monitoring
         applyMotorLink(t.motor_link || {});
 
@@ -1370,8 +2127,8 @@
         } else {
           gpsChip.textContent = "GPS: No fix";
           gpsChip.className = "chip gray";
-          telGps.textContent = "No fix";
-          telGps.style.color = "var(--muted)";
+          telGps.textContent = "No GPS detected";
+          telGps.style.color = "var(--red-text)";
           gpsFill.style.width = "0%";
         }
 
@@ -1379,30 +2136,36 @@
         if (!state.hasStillImage) {
           const imgEl = document.getElementById("cameraStreamImg");
           const phEl = document.getElementById("cameraPlaceholder");
-          if (t.camera_connected) {
+          const liveBtn = document.getElementById("liveViewToggleBtn");
+          if (t.camera_connected && !uiPrefs.liveViewPaused) {
             if (!imgEl.src.includes("/api/video_feed")) {
               imgEl.src = `/api/video_feed?overlay=${state.lccOverlay ? 1 : 0}&t=${Date.now()}`;
             }
             imgEl.style.display = "block";
             phEl.style.display = "none";
-            document.getElementById("sourceChip").textContent = "Live";
-            document.getElementById("sourceChip").className = "chip green";
-            document.getElementById("telCamera").textContent = t.camera_label;
+            if (liveBtn) liveBtn.textContent = "Stop Live View";
+            document.getElementById("telCamera").textContent = "✓ " + (t.camera_label || "Live");
             document.getElementById("telCamera").style.color = "var(--good)";
 
             if (t.live_hue !== null) {
               document.getElementById("hueVal").textContent = Math.round(t.live_hue);
               document.getElementById("hueTile").classList.toggle("danger", !t.live_in_band);
+              document.getElementById("sourceChip").textContent = t.live_in_band ? "Healthy" : "Needs Check";
+              document.getElementById("sourceChip").className = "chip " + (t.live_in_band ? "green" : "orange");
               document.getElementById("telLeafColor").textContent = `${t.live_panel} · Hue ${Math.round(t.live_hue)}`;
               document.getElementById("telLeafColor").style.color = t.live_in_band ? "var(--good)" : "var(--warn-text)";
               document.getElementById("telSummary").textContent = t.live_summary || "--";
+            } else {
+              document.getElementById("sourceChip").textContent = "Live";
+              document.getElementById("sourceChip").className = "chip green";
             }
           } else {
             imgEl.style.display = "none";
             phEl.style.display = "flex";
-            document.getElementById("sourceChip").textContent = "Standby";
+            if (liveBtn) liveBtn.textContent = "Start Live View";
+            document.getElementById("sourceChip").textContent = uiPrefs.liveViewPaused ? "Paused" : "Standby";
             document.getElementById("sourceChip").className = "chip gray";
-            document.getElementById("telCamera").textContent = "Disconnected";
+            document.getElementById("telCamera").textContent = uiPrefs.liveViewPaused ? "Paused" : "Disconnected";
             document.getElementById("telCamera").style.color = "var(--muted)";
           }
         }
@@ -1894,19 +2657,26 @@
       const capChip = document.getElementById("captureIdChip");
       capChip.textContent = data.record_id;
       capChip.style.display = "inline-flex";
-      document.getElementById("telCamera").textContent = `Saved (${data.record_id})`;
+      document.getElementById("telCamera").textContent = "✓ Saved";
       document.getElementById("telCamera").style.color = "var(--good)";
 
-      document.getElementById("uploadBtn").textContent = state.camConnected ? "↩ Resume Live" : "✖ Clear Photo";
+      const evalSub = document.getElementById("evalSubStatus");
+      if (evalSub) evalSub.textContent = `Report ${data.record_id} saved. View full results in the Records tab.`;
+
+      document.getElementById("uploadBtn").textContent = state.camConnected ? "↩ Live" : "✖ Clear";
       document.getElementById("captureBtn").textContent = "Saved ✓ (Clear)";
+      const liveBtn = document.getElementById("liveViewToggleBtn");
+      if (liveBtn) liveBtn.textContent = "Start Live View";
+      triggerHaptic(30);
+      announceStatus(`Evaluation saved as ${data.record_id}. Status: ${data.status}`);
     }
 
     function clearStillImage() {
       state.hasStillImage = false;
       state.originalDataUrl = null;
       state.segmentedDataUrl = null;
-      document.getElementById("uploadBtn").textContent = "📤 Upload Photo";
-      document.getElementById("captureBtn").textContent = "Capture & Evaluate";
+      document.getElementById("uploadBtn").textContent = "📤 Upload";
+      document.getElementById("captureBtn").textContent = "Evaluate";
       document.getElementById("hudBadge").style.display = "none";
       document.getElementById("captureIdChip").style.display = "none";
       pollTelemetry();
